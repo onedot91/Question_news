@@ -1,0 +1,321 @@
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { playSound } from '../lib/sound'
+import { formatWeekKeyAsMonthDay, getCurrentWeekKey } from '../lib/week'
+import { validateQuestionText } from '../lib/validation'
+import { QuestionCard } from './QuestionCard'
+import { supabase, supabaseConfigError, type Question, type QuestionType, type WeeklyTopic } from '../lib/supabase'
+
+interface StudentPageProps {
+  studentNumber: number
+}
+
+type QuestionDrafts = Record<QuestionType, string>
+type StatusMessages = Partial<Record<QuestionType, string>>
+
+const labels: Record<QuestionType, string> = {
+  personal: '개인 질문',
+  topic: '주제 질문',
+}
+
+export function StudentPage({ studentNumber }: StudentPageProps) {
+  const [drafts, setDrafts] = useState<QuestionDrafts>({ personal: '', topic: '' })
+  const [allQuestions, setAllQuestions] = useState<Question[]>([])
+  const [myQuestions, setMyQuestions] = useState<Question[]>([])
+  const [weeklyTopic, setWeeklyTopic] = useState<WeeklyTopic | null>(null)
+  const [collectionType, setCollectionType] = useState<QuestionType>('personal')
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [messages, setMessages] = useState<StatusMessages>({})
+  const [loading, setLoading] = useState(true)
+  const [savingType, setSavingType] = useState<QuestionType | null>(null)
+  const [error, setError] = useState<string | null>(supabaseConfigError)
+  const weekKey = getCurrentWeekKey()
+
+  const loadQuestions = useCallback(async () => {
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    const [questionsResult, historyResult, topicResult] = await Promise.all([
+      supabase
+        .from('questions')
+        .select('*')
+        .eq('week_key', weekKey)
+        .order('student_number', { ascending: true })
+        .order('question_type', { ascending: true }),
+      supabase
+        .from('questions')
+        .select('*')
+        .eq('student_number', studentNumber)
+        .order('week_key', { ascending: false })
+        .order('question_type', { ascending: true }),
+      supabase.from('weekly_topics').select('*').eq('week_key', weekKey).maybeSingle(),
+    ])
+
+    if (questionsResult.error || historyResult.error || topicResult.error) {
+      setError('질문을 불러오지 못했어요. 선생님께 알려 주세요.')
+    } else {
+      const loaded = (questionsResult.data as Question[] | null) ?? []
+      const loadedHistory = (historyResult.data as Question[] | null) ?? []
+      const nextDrafts: QuestionDrafts = { personal: '', topic: '' }
+      const currentStudentQuestions = [
+        ...loadedHistory.filter((question) => question.week_key === weekKey),
+        ...loaded.filter((question) => question.student_number === studentNumber),
+      ]
+
+      currentStudentQuestions.forEach((question) => {
+        nextDrafts[question.question_type] = question.question_text
+      })
+
+      setAllQuestions(loaded)
+      setMyQuestions(loadedHistory)
+      setWeeklyTopic((topicResult.data as WeeklyTopic | null) ?? null)
+      setDrafts(nextDrafts)
+      setError(null)
+    }
+
+    setLoading(false)
+  }, [studentNumber, weekKey])
+
+  useEffect(() => {
+    loadQuestions()
+  }, [loadQuestions])
+
+  function handleChange(type: QuestionType, value: string) {
+    setDrafts((current) => ({ ...current, [type]: value }))
+    setMessages((current) => ({ ...current, [type]: undefined }))
+  }
+
+  function handleSelectCollection(type: QuestionType) {
+    setCollectionType((current) => {
+      if (current !== type) {
+        playSound('tap')
+      }
+      return type
+    })
+  }
+
+  async function handleSave(type: QuestionType) {
+    const questionText = drafts[type].trim()
+    const validationMessage = validateQuestionText(questionText)
+
+    if (type === 'topic' && !weeklyTopic) {
+      playSound('error')
+      setMessages((current) => ({ ...current, topic: '주제가 아직 없어요.' }))
+      return
+    }
+
+    if (type === 'topic' && !drafts.personal.trim()) {
+      playSound('error')
+      setMessages((current) => ({ ...current, topic: '개인 질문 먼저!' }))
+      return
+    }
+
+    if (validationMessage) {
+      playSound('error')
+      setMessages((current) => ({ ...current, [type]: validationMessage }))
+      return
+    }
+
+    if (!supabase) {
+      playSound('error')
+      setError(supabaseConfigError)
+      return
+    }
+
+    setSavingType(type)
+    setMessages((current) => ({ ...current, [type]: '' }))
+
+    const { data: savedQuestion, error: saveError } = await supabase
+      .from('questions')
+      .upsert(
+        {
+          student_number: studentNumber,
+          question_type: type,
+          question_text: questionText,
+          week_key: weekKey,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'student_number,question_type,week_key' },
+      )
+      .select('*')
+      .single()
+
+    if (saveError) {
+      playSound('error')
+      setMessages((current) => ({ ...current, [type]: '저장하지 못했어요. 다시 눌러 주세요.' }))
+    } else {
+      const saved = savedQuestion as Question | null
+
+      playSound('save')
+      setDrafts((current) => ({ ...current, [type]: questionText }))
+      if (saved) {
+        setAllQuestions((current) => {
+          const others = current.filter(
+            (question) =>
+              !(
+                question.student_number === studentNumber &&
+                question.question_type === type &&
+                question.week_key === weekKey
+              ),
+          )
+          return [...others, saved].sort((a, b) => a.student_number - b.student_number)
+        })
+        setMyQuestions((current) => {
+          const others = current.filter(
+            (question) =>
+              !(
+                question.student_number === studentNumber &&
+                question.question_type === type &&
+                question.week_key === weekKey
+              ),
+          )
+          return [saved, ...others]
+        })
+      }
+      setMessages((current) => ({ ...current, [type]: undefined }))
+    }
+
+    setSavingType(null)
+  }
+
+  const personalQuestions = allQuestions.filter(
+    (question) => question.question_type === 'personal' && question.question_text.trim(),
+  )
+  const topicQuestions = allQuestions.filter(
+    (question) => question.question_type === 'topic' && question.question_text.trim(),
+  )
+  const selectedQuestions = collectionType === 'personal' ? personalQuestions : topicQuestions
+  const selectedCollectionLabel = labels[collectionType]
+  const isQuestionSaved = (type: QuestionType) =>
+    myQuestions.some(
+      (question) =>
+        question.week_key === weekKey &&
+        question.question_type === type &&
+        question.question_text === drafts[type].trim(),
+    )
+
+  return (
+    <main className="page student-page">
+      <header className="top-bar">
+        <div>
+          <h1>{studentNumber}번</h1>
+        </div>
+        <button className="secondary-button history-open-button" type="button" onClick={() => setIsHistoryOpen(true)}>
+          내 기록
+        </button>
+      </header>
+
+      {error && <p className="notice error">{error}</p>}
+      {loading ? (
+        <p className="notice pulse">불러오는 중</p>
+      ) : (
+        <>
+          <section className="student-card-grid" aria-label="질문 쓰기">
+            <QuestionCard
+              label="개인 질문"
+              type="personal"
+              value={drafts.personal}
+              isSaving={savingType === 'personal'}
+              isFilled={Boolean(drafts.personal.trim())}
+              isSaved={isQuestionSaved('personal')}
+              isSelected={collectionType === 'personal'}
+              message={messages.personal}
+              placeholder="질문을 써요"
+              onChange={handleChange}
+              onSelect={handleSelectCollection}
+              onSave={handleSave}
+            />
+            {weeklyTopic && (
+              <div className="topic-write">
+                <QuestionCard
+                  label="주제 질문"
+                  type="topic"
+                  value={drafts.topic}
+                  isSaving={savingType === 'topic'}
+                  isFilled={Boolean(drafts.topic.trim())}
+                  isSaved={isQuestionSaved('topic')}
+                  isSelected={collectionType === 'topic'}
+                  message={messages.topic}
+                  titleAside={`이번 주 주제: ${weeklyTopic.topic_text}`}
+                  placeholder={`${weeklyTopic.topic_text}에 대해 질문해요`}
+                  onChange={handleChange}
+                  onSelect={handleSelectCollection}
+                  onSave={handleSave}
+                />
+              </div>
+            )}
+          </section>
+
+          <section className="collection-section" aria-labelledby="collection-title">
+            <div className="collection-head">
+              <h2 id="collection-title">{selectedCollectionLabel} 모음</h2>
+              <div className="collection-tabs" aria-label="질문 모음 선택">
+                <button
+                  className={collectionType === 'personal' ? 'active' : ''}
+                  type="button"
+                  onClick={() => handleSelectCollection('personal')}
+                >
+                  개인 {personalQuestions.length}
+                </button>
+                <button
+                  className={collectionType === 'topic' ? 'active' : ''}
+                  type="button"
+                  onClick={() => handleSelectCollection('topic')}
+                >
+                  주제 {topicQuestions.length}
+                </button>
+              </div>
+            </div>
+
+            {selectedQuestions.length > 0 ? (
+              <div className="shared-grid collection-grid" key={collectionType}>
+                {selectedQuestions.map((question, index) => (
+                  <article
+                    className="shared-card"
+                    key={question.id}
+                    style={{ '--card-index': index } as CSSProperties}
+                  >
+                    <div>
+                      <strong>{question.student_number}번</strong>
+                    </div>
+                    <p>{question.question_text}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="notice">아직 없어요.</p>
+            )}
+          </section>
+
+          {isHistoryOpen && (
+            <div className="modal-backdrop" role="presentation">
+              <section className="history-modal" aria-labelledby="history-title" role="dialog" aria-modal="true">
+                <div className="modal-head">
+                  <h2 id="history-title">내 기록</h2>
+                  <button className="secondary-button" type="button" onClick={() => setIsHistoryOpen(false)}>
+                    닫기
+                  </button>
+                </div>
+                {myQuestions.length > 0 ? (
+                  <div className="history-list">
+                    {myQuestions.map((question) => (
+                      <article className="history-card" key={question.id}>
+                        <span>{formatWeekKeyAsMonthDay(question.week_key)}</span>
+                        <strong>{labels[question.question_type]}</strong>
+                        <p>{question.question_text}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="notice">아직 없어요.</p>
+                )}
+              </section>
+            </div>
+          )}
+        </>
+      )}
+    </main>
+  )
+}
