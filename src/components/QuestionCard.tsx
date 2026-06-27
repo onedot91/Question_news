@@ -179,7 +179,7 @@ export function QuestionCard({
   isSelected = false,
   disabled = false,
   message,
-  placeholder = '평소 궁금한 내용에 대해 질문해요.',
+  placeholder = '평소 궁금한 내용에 대해 질문해요',
   titleAside,
   onChange,
   onSelect,

@@ -253,7 +253,7 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
               isSaved={isQuestionSaved('personal')}
               isSelected={collectionType === 'personal'}
               message={messages.personal}
-              placeholder="평소 궁금한 내용에 대해 질문해요."
+              placeholder="평소 궁금한 내용에 대해 질문해요"
               onChange={handleChange}
               onSelect={handleSelectCollection}
               onSave={handleSave}
