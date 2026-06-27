@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import gomaCharacter from '../assets/goma-newspaper-character.png'
 
 interface NumberSelectProps {
@@ -5,12 +6,25 @@ interface NumberSelectProps {
 }
 
 export function NumberSelect({ onSelect }: NumberSelectProps) {
+  const [teacherClickCount, setTeacherClickCount] = useState(0)
+  const isTeacherVisible = teacherClickCount >= 5
+
   function handleSelect(studentNumber: number) {
     onSelect(studentNumber)
   }
 
+  function handleTeacherReveal() {
+    setTeacherClickCount((current) => Math.min(current + 1, 5))
+  }
+
   return (
     <main className="page number-page">
+      <button
+        className="teacher-reveal-button"
+        type="button"
+        aria-label="선생님 번호 보이기"
+        onClick={handleTeacherReveal}
+      />
       <section className="intro">
         <div>
           <p className="eyebrow">질문하기</p>
@@ -29,10 +43,12 @@ export function NumberSelect({ onSelect }: NumberSelectProps) {
             {number}번
           </button>
         ))}
-        <button className="number-button teacher pop-in" type="button" onClick={() => handleSelect(0)}>
-          0번
-          <span>선생님</span>
-        </button>
+        {isTeacherVisible && (
+          <button className="number-button teacher pop-in" type="button" onClick={() => handleSelect(0)}>
+            0번
+            <span>선생님</span>
+          </button>
+        )}
       </section>
     </main>
   )

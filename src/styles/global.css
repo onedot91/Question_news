@@ -148,6 +148,24 @@ h2 {
   gap: 14px;
 }
 
+.teacher-reveal-button {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: default;
+}
+
+.teacher-reveal-button:focus-visible {
+  outline: 2px solid rgba(28, 151, 99, 0.2);
+  outline-offset: 2px;
+}
+
 .number-button {
   position: relative;
   overflow: hidden;
