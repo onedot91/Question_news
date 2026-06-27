@@ -74,7 +74,14 @@ export default function App() {
           aria-label="인트로 닫기"
           onClick={() => setIsSplashVisible(false)}
         >
-          <img src={thumbnailImage} alt="" />
+          <span className="splash-card-wrap">
+            <img src={thumbnailImage} alt="" />
+            <span className="splash-loader" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </span>
         </button>
       )}
     </>
