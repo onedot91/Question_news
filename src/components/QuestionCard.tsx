@@ -29,7 +29,7 @@ export function QuestionCard({
   isSelected = false,
   disabled = false,
   message,
-  placeholder = '질문을 써요',
+  placeholder = '평소 궁금한 내용에 대해 질문해요.',
   titleAside,
   onChange,
   onSelect,
@@ -44,6 +44,11 @@ export function QuestionCard({
       onClick={() => onSelect?.(type)}
       onFocusCapture={() => onSelect?.(type)}
     >
+      <div className="question-selection-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="question-title-row">
         <h2>{label}</h2>
         {titleAside && <span>{titleAside}</span>}

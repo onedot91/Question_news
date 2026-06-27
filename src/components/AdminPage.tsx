@@ -29,13 +29,15 @@ export function AdminPage() {
   const weekOptions = useMemo(() => buildWeekOptions(16), [])
   const [weekKey, setWeekKey] = useState(() => currentWeekKey)
 
-  const loadQuestions = useCallback(async () => {
+  const loadQuestions = useCallback(async (showLoading = true) => {
     if (!supabase) {
       setLoading(false)
       return
     }
 
-    setLoading(true)
+    if (showLoading) {
+      setLoading(true)
+    }
     const [questionsResult, topicResult] = await Promise.all([
       supabase.from('questions').select('*').eq('week_key', weekKey).order('student_number', { ascending: true }),
       supabase.from('weekly_topics').select('*').eq('week_key', weekKey).maybeSingle(),
@@ -58,7 +60,9 @@ export function AdminPage() {
       setError(null)
     }
 
-    setLoading(false)
+    if (showLoading) {
+      setLoading(false)
+    }
   }, [weekKey])
 
   useEffect(() => {
@@ -126,6 +130,7 @@ export function AdminPage() {
       return
     }
 
+    const scrollY = window.scrollY
     const { error: deleteError } = await supabase.from('questions').delete().eq('id', question.id)
 
     if (deleteError) {
@@ -134,7 +139,8 @@ export function AdminPage() {
     } else {
       playSound('delete')
       setMessage(`${question.student_number}번 삭제 완료`)
-      await loadQuestions()
+      await loadQuestions(false)
+      requestAnimationFrame(() => window.scrollTo({ top: scrollY }))
     }
   }
 
@@ -221,41 +227,40 @@ export function AdminPage() {
   return (
     <main className="page admin-page">
       <header className="top-bar">
-        <div>
+        <div className="admin-header-title">
           <p className="eyebrow">관리자 · {formatWeekKeyAsKoreanMonthWeek(weekKey)}</p>
           <h1>질문 현황</h1>
         </div>
+        <section className="topic-admin-panel" aria-label="주제 설정">
+          <div className="topic-admin-fields">
+            <label className="topic-date-field">
+              <span>적용 주</span>
+              <select value={weekKey} onChange={(event) => setWeekKey(event.target.value)} aria-label="주제 적용 주">
+                {weekOptions.map((option) => (
+                  <option key={option.weekKey} value={option.weekKey}>
+                    {option.weekKey === currentWeekKey ? `${option.label} · 오늘` : option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="topic-text-field">
+              <span>주제</span>
+              <input
+                value={topicDraft}
+                maxLength={40}
+                onChange={(event) => setTopicDraft(event.target.value)}
+                placeholder="예: 우리 동네"
+              />
+            </label>
+            <button className="primary-button" type="button" disabled={topicSaving} onClick={saveWeeklyTopic}>
+              {topicSaving ? '저장 중' : '주제 저장'}
+            </button>
+          </div>
+        </section>
       </header>
 
       {error && <p className="notice error">{error}</p>}
       {message && <p className="notice success">{message}</p>}
-
-      <section className="topic-admin-panel">
-        <div className="topic-admin-fields">
-          <label className="topic-date-field">
-            <span>적용 주</span>
-            <select value={weekKey} onChange={(event) => setWeekKey(event.target.value)} aria-label="주제 적용 주">
-              {weekOptions.map((option) => (
-                <option key={option.weekKey} value={option.weekKey}>
-                  {option.weekKey === currentWeekKey ? `${option.label} · 오늘` : option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="topic-text-field">
-            <span>주제</span>
-            <input
-              value={topicDraft}
-              maxLength={40}
-              onChange={(event) => setTopicDraft(event.target.value)}
-              placeholder="예: 우리 동네"
-            />
-          </label>
-          <button className="primary-button" type="button" disabled={topicSaving} onClick={saveWeeklyTopic}>
-            {topicSaving ? '저장 중' : '주제 저장'}
-          </button>
-        </div>
-      </section>
 
       <section className="submission-overview" aria-label="학생별 질문 제출 현황">
         <div className="overview-head">
@@ -359,7 +364,7 @@ export function AdminPage() {
                   const question = questionMap[studentNumber]?.[type]
 
                   return (
-                    <div className="admin-question-card" key={type}>
+                    <div className={`admin-question-card${question ? '' : ' is-missing'}`} key={type}>
                       {question ? (
                         <div className="admin-question-edit">
                           <input
@@ -396,7 +401,13 @@ export function AdminPage() {
                             </button>
                           </div>
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="missing-submission" aria-label={`${studentNumber}번 ${labels[type]} 미제출`}>
+                          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                            <path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm-4 5h8v2H8v-2Z" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
                   )
                 })}

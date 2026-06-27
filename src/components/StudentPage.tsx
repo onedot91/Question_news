@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { playSound } from '../lib/sound'
-import { formatWeekKeyAsMonthDay, getCurrentWeekKey } from '../lib/week'
+import { formatWeekKeyAsKoreanMonthWeek, getCurrentWeekKey } from '../lib/week'
 import { validateQuestionText } from '../lib/validation'
 import { QuestionCard } from './QuestionCard'
 import { supabase, supabaseConfigError, type Question, type QuestionType, type WeeklyTopic } from '../lib/supabase'
@@ -11,6 +11,10 @@ interface StudentPageProps {
 
 type QuestionDrafts = Record<QuestionType, string>
 type StatusMessages = Partial<Record<QuestionType, string>>
+type HistoryWeek = {
+  weekKey: string
+  questions: Partial<Record<QuestionType, Question>>
+}
 
 const labels: Record<QuestionType, string> = {
   personal: '개인 질문',
@@ -188,6 +192,22 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
   )
   const selectedQuestions = collectionType === 'personal' ? personalQuestions : topicQuestions
   const selectedCollectionLabel = labels[collectionType]
+  const historyWeeks = useMemo<HistoryWeek[]>(() => {
+    const groupedQuestions = myQuestions.reduce<Map<string, Partial<Record<QuestionType, Question>>>>(
+      (groups, question) => {
+        const weekQuestions = groups.get(question.week_key) ?? {}
+        weekQuestions[question.question_type] = question
+        groups.set(question.week_key, weekQuestions)
+
+        return groups
+      },
+      new Map(),
+    )
+
+    return Array.from(groupedQuestions.entries())
+      .sort(([weekA], [weekB]) => weekB.localeCompare(weekA))
+      .map(([weekKey, questions]) => ({ weekKey, questions }))
+  }, [myQuestions])
   const isQuestionSaved = (type: QuestionType) =>
     myQuestions.some(
       (question) =>
@@ -222,7 +242,7 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
               isSaved={isQuestionSaved('personal')}
               isSelected={collectionType === 'personal'}
               message={messages.personal}
-              placeholder="질문을 써요"
+              placeholder="평소 궁금한 내용에 대해 질문해요."
               onChange={handleChange}
               onSelect={handleSelectCollection}
               onSave={handleSave}
@@ -298,13 +318,27 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
                     닫기
                   </button>
                 </div>
-                {myQuestions.length > 0 ? (
+                {historyWeeks.length > 0 ? (
                   <div className="history-list">
-                    {myQuestions.map((question) => (
-                      <article className="history-card" key={question.id}>
-                        <span>{formatWeekKeyAsMonthDay(question.week_key)}</span>
-                        <strong>{labels[question.question_type]}</strong>
-                        <p>{question.question_text}</p>
+                    {historyWeeks.map((historyWeek) => (
+                      <article className="history-card" key={historyWeek.weekKey}>
+                        <span className="history-week">{formatWeekKeyAsKoreanMonthWeek(historyWeek.weekKey)}</span>
+                        <div className="history-question-stack">
+                          {(['personal', 'topic'] as QuestionType[]).map((type) => {
+                            const question = historyWeek.questions[type]
+
+                            if (!question) {
+                              return null
+                            }
+
+                            return (
+                              <div className="history-question-row" key={type}>
+                                <strong className={`history-label history-label-${type}`}>{labels[type]}</strong>
+                                <p>{question.question_text}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </article>
                     ))}
                   </div>
