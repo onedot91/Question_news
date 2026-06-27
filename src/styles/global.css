@@ -814,10 +814,24 @@ textarea:focus,
   min-width: 0;
 }
 
+.topic-admin-panel .topic-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .topic-admin-panel span {
   color: #24506f;
   font-size: 1.02rem;
   font-weight: 900;
+}
+
+.topic-admin-panel .topic-status-legend {
+  color: rgba(95, 75, 44, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .topic-admin-panel input,
@@ -1762,6 +1776,15 @@ body {
   color: rgba(36, 80, 111, 0.9);
   font-size: 0.88rem;
   letter-spacing: 0;
+}
+
+.admin-page .topic-admin-panel .topic-field-heading {
+  align-items: center;
+}
+
+.admin-page .topic-admin-panel .topic-status-legend {
+  color: rgba(95, 75, 44, 0.68);
+  font-size: 0.72rem;
 }
 
 .admin-page .topic-admin-panel input,

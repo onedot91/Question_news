@@ -3,7 +3,7 @@ import { buildTxtContent, downloadTxt } from '../lib/download'
 import { playSound } from '../lib/sound'
 import { supabase, supabaseConfigError, type Question, type QuestionType, type WeeklyTopic } from '../lib/supabase'
 import { validateQuestionText } from '../lib/validation'
-import { buildWeekOptions, formatWeekKeyAsKoreanMonthWeek, getCurrentWeekKey } from '../lib/week'
+import { buildWeekOptions, getCurrentWeekKey } from '../lib/week'
 
 type QuestionMap = Record<number, Partial<Record<QuestionType, Question>>>
 type FilterMode = 'all' | QuestionType
@@ -18,6 +18,7 @@ export function AdminPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [topicDraft, setTopicDraft] = useState('')
+  const [topicWeekKeys, setTopicWeekKeys] = useState<Set<string>>(() => new Set())
   const [filter, setFilter] = useState<FilterMode>('all')
   const [loading, setLoading] = useState(true)
   const [topicSaving, setTopicSaving] = useState(false)
@@ -26,8 +27,27 @@ export function AdminPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(supabaseConfigError)
   const currentWeekKey = useMemo(() => getCurrentWeekKey(), [])
-  const weekOptions = useMemo(() => buildWeekOptions(16), [])
+  const weekOptions = useMemo(() => buildWeekOptions(8), [])
   const [weekKey, setWeekKey] = useState(() => currentWeekKey)
+
+  const loadTopicWeekKeys = useCallback(async () => {
+    if (!supabase) {
+      return
+    }
+
+    const weekKeys = weekOptions.map((option) => option.weekKey)
+    const { data, error: topicWeeksError } = await supabase
+      .from('weekly_topics')
+      .select('week_key')
+      .in('week_key', weekKeys)
+
+    if (topicWeeksError) {
+      setError('주제 작성 현황을 불러오지 못했어요. Supabase 설정을 확인해 주세요.')
+      return
+    }
+
+    setTopicWeekKeys(new Set(((data as Pick<WeeklyTopic, 'week_key'>[] | null) ?? []).map((topic) => topic.week_key)))
+  }, [weekOptions])
 
   const loadQuestions = useCallback(async (showLoading = true) => {
     if (!supabase) {
@@ -68,6 +88,10 @@ export function AdminPage() {
   useEffect(() => {
     loadQuestions()
   }, [loadQuestions])
+
+  useEffect(() => {
+    loadTopicWeekKeys()
+  }, [loadTopicWeekKeys])
 
   const questionMap = useMemo(() => {
     return questions.reduce<QuestionMap>((acc, question) => {
@@ -170,6 +194,7 @@ export function AdminPage() {
       playSound('delete')
       setMessage('모든 기록을 초기화했습니다.')
       setResetConfirmOpen(false)
+      await loadTopicWeekKeys()
       await loadQuestions()
     }
 
@@ -185,6 +210,13 @@ export function AdminPage() {
 
   function shouldShowType(type: QuestionType) {
     return filter === 'all' || filter === type
+  }
+
+  function formatTopicWeekOption(option: { weekKey: string; label: string }) {
+    const statusMark = topicWeekKeys.has(option.weekKey) ? '●' : '○'
+    const todayText = option.weekKey === currentWeekKey ? ' · 오늘' : ''
+
+    return `${statusMark} ${option.label}${todayText}`
   }
 
   async function saveWeeklyTopic() {
@@ -218,6 +250,7 @@ export function AdminPage() {
     } else {
       playSound('save')
       setMessage('주제 저장 완료')
+      await loadTopicWeekKeys()
       await loadQuestions()
     }
 
@@ -228,17 +261,21 @@ export function AdminPage() {
     <main className="page admin-page">
       <header className="top-bar">
         <div className="admin-header-title">
-          <p className="eyebrow">관리자 · {formatWeekKeyAsKoreanMonthWeek(weekKey)}</p>
           <h1>질문 현황</h1>
         </div>
         <section className="topic-admin-panel" aria-label="주제 설정">
           <div className="topic-admin-fields">
             <label className="topic-date-field">
-              <span>적용 주</span>
+              <span className="topic-field-heading">
+                <span>적용 주</span>
+                <span className="topic-status-legend" aria-label="검은 동그라미는 주제 있음, 빈 동그라미는 미작성">
+                  ● 있음 · ○ 없음
+                </span>
+              </span>
               <select value={weekKey} onChange={(event) => setWeekKey(event.target.value)} aria-label="주제 적용 주">
                 {weekOptions.map((option) => (
                   <option key={option.weekKey} value={option.weekKey}>
-                    {option.weekKey === currentWeekKey ? `${option.label} · 오늘` : option.label}
+                    {formatTopicWeekOption(option)}
                   </option>
                 ))}
               </select>
