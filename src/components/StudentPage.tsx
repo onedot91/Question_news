@@ -32,7 +32,7 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
   const [loading, setLoading] = useState(true)
   const [savingType, setSavingType] = useState<QuestionType | null>(null)
   const [error, setError] = useState<string | null>(supabaseConfigError)
-  const weekKey = getCurrentWeekKey()
+  const [weekKey, setWeekKey] = useState(() => getCurrentWeekKey())
 
   const loadQuestions = useCallback(async () => {
     if (!supabase) {
@@ -85,6 +85,17 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
   useEffect(() => {
     loadQuestions()
   }, [loadQuestions])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setWeekKey((currentWeekKey) => {
+        const nextWeekKey = getCurrentWeekKey()
+        return currentWeekKey === nextWeekKey ? currentWeekKey : nextWeekKey
+      })
+    }, 60000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   function handleChange(type: QuestionType, value: string) {
     setDrafts((current) => ({ ...current, [type]: value }))

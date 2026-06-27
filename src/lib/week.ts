@@ -1,5 +1,10 @@
+const KOREA_TIME_OFFSET_MS = 9 * 60 * 60 * 1000
+
 export function getCurrentWeekKey(date = new Date()): string {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const koreaDate = new Date(date.getTime() + KOREA_TIME_OFFSET_MS)
+  const target = new Date(
+    Date.UTC(koreaDate.getUTCFullYear(), koreaDate.getUTCMonth(), koreaDate.getUTCDate()),
+  )
   const dayNumber = target.getUTCDay() || 7
   target.setUTCDate(target.getUTCDate() + 4 - dayNumber)
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1))
