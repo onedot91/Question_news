@@ -13,7 +13,7 @@ export function NumberSelect({ onSelect }: NumberSelectProps) {
     <main className="page number-page">
       <section className="intro">
         <div>
-          <p className="eyebrow">질문 모으기</p>
+          <p className="eyebrow">질문하기</p>
           <h1>
             <span>번호</span> 선택
           </h1>
