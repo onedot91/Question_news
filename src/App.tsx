@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AdminPage } from './components/AdminPage'
 import { NumberSelect } from './components/NumberSelect'
+import { PrivacyPolicy } from './components/PrivacyPolicy'
 import { StudentPage } from './components/StudentPage'
 import thumbnailImage from './assets/question-news-thumbnail.avif'
 import { playSound } from './lib/sound'
@@ -18,18 +19,27 @@ function readStoredNumber(): number | null {
 export default function App() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null)
   const [isSplashVisible, setIsSplashVisible] = useState(true)
+  const isPrivacyPage = window.location.pathname === '/privacy'
 
   useEffect(() => {
+    if (isPrivacyPage) {
+      return
+    }
+
     setSelectedNumber(readStoredNumber())
-  }, [])
+  }, [isPrivacyPage])
 
   useEffect(() => {
+    if (isPrivacyPage) {
+      return
+    }
+
     const timeoutId = window.setTimeout(() => {
       setIsSplashVisible(false)
     }, SPLASH_DURATION_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [])
+  }, [isPrivacyPage])
 
   function handleSelect(studentNumber: number) {
     playSound('tap')
@@ -55,6 +65,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleShortcut)
   }, [handleReset])
 
+  if (isPrivacyPage) {
+    return <PrivacyPolicy />
+  }
+
   const page =
     selectedNumber === null ? (
       <NumberSelect onSelect={handleSelect} />
@@ -67,6 +81,9 @@ export default function App() {
   return (
     <>
       {page}
+      <footer className="site-footer">
+        <a href="/privacy">개인정보처리방침</a>
+      </footer>
       {isSplashVisible && (
         <button
           className="splash-screen"

@@ -47,6 +47,10 @@ input {
   font: inherit;
 }
 
+a {
+  color: inherit;
+}
+
 button {
   border: 0;
   cursor: pointer;
@@ -802,6 +806,86 @@ textarea:focus,
 .notice.success {
   background: var(--mint);
   color: #1f6b51;
+}
+
+.site-footer {
+  width: min(1120px, calc(100% - 32px));
+  margin: -28px auto 24px;
+  color: rgba(36, 49, 61, 0.72);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.site-footer a {
+  text-underline-offset: 4px;
+}
+
+.policy-page {
+  display: grid;
+  gap: 18px;
+}
+
+.policy-header {
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+  padding: 22px;
+  background: rgba(255, 253, 249, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.policy-header h1 {
+  margin-bottom: 10px;
+  font-size: clamp(2rem, 4.5vw, 3.4rem);
+}
+
+.policy-header p:last-child {
+  max-width: 720px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.policy-panel {
+  display: grid;
+  gap: 12px;
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.policy-panel article {
+  border-bottom: 2px dotted rgba(130, 90, 54, 0.14);
+  padding-bottom: 12px;
+}
+
+.policy-panel article:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.policy-panel h2 {
+  margin-bottom: 6px;
+  font-size: 1.18rem;
+}
+
+.policy-panel p {
+  margin-bottom: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.policy-home-link {
+  justify-self: start;
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
 }
 
 .topic-admin-panel {
