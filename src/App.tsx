@@ -55,7 +55,10 @@ export default function App() {
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
-      if (event.key === 'Enter' && event.altKey && event.metaKey) {
+      const isResetShortcut =
+        event.key === 'Enter' && event.altKey && (event.metaKey || (event.ctrlKey && !event.metaKey))
+
+      if (isResetShortcut) {
         event.preventDefault()
         handleReset()
       }
