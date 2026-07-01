@@ -3064,14 +3064,22 @@ textarea:focus,
 }
 
 .collection-grid {
-  perspective: 900px;
-  transform-style: preserve-3d;
+  content-visibility: auto;
+  contain-intrinsic-size: 760px;
+}
+
+.collection-spacer {
+  grid-column: 1 / -1;
+  pointer-events: none;
 }
 
 .collection-grid .shared-card {
-  animation: card-deal 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: min(calc(var(--card-index) * 44ms), 420ms);
-  will-change: transform, opacity;
+  content-visibility: auto;
+  contain: layout paint style;
+  contain-intrinsic-size: 112px;
+  backdrop-filter: none;
+  box-shadow: 0 6px 12px rgba(53, 38, 19, 0.08);
+  will-change: auto;
 }
 
 .collection-grid .shared-card:hover {

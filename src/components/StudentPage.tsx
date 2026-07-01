@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { playSound } from '../lib/sound'
 import { formatWeekKeyAsKoreanMonthWeek, getCurrentWeekKey } from '../lib/week'
 import { validateQuestionText } from '../lib/validation'
@@ -21,7 +21,19 @@ const labels: Record<QuestionType, string> = {
   topic: '주제 질문',
 }
 
+const collectionCardMinWidth = 230
+const collectionGridGap = 12
+const collectionRowHeight = 124
+const collectionOverscanRows = 12
+
+interface CollectionWindow {
+  columnCount: number
+  startRow: number
+  endRow: number
+}
+
 export function StudentPage({ studentNumber }: StudentPageProps) {
+  const collectionGridRef = useRef<HTMLDivElement>(null)
   const [drafts, setDrafts] = useState<QuestionDrafts>({ personal: '', topic: '' })
   const [allQuestions, setAllQuestions] = useState<Question[]>([])
   const [myQuestions, setMyQuestions] = useState<Question[]>([])
@@ -203,6 +215,11 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
   )
   const selectedQuestions = collectionType === 'personal' ? personalQuestions : topicQuestions
   const selectedCollectionLabel = labels[collectionType]
+  const [collectionWindow, setCollectionWindow] = useState<CollectionWindow>({
+    columnCount: 1,
+    startRow: 0,
+    endRow: 10,
+  })
   const historyWeeks = useMemo<HistoryWeek[]>(() => {
     const groupedQuestions = myQuestions.reduce<Map<string, Partial<Record<QuestionType, Question>>>>(
       (groups, question) => {
@@ -219,6 +236,13 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
       .sort(([weekA], [weekB]) => weekB.localeCompare(weekA))
       .map(([weekKey, questions]) => ({ weekKey, questions }))
   }, [myQuestions])
+  const totalCollectionRows = Math.ceil(selectedQuestions.length / collectionWindow.columnCount)
+  const visibleCollectionQuestions = selectedQuestions.slice(
+    collectionWindow.startRow * collectionWindow.columnCount,
+    collectionWindow.endRow * collectionWindow.columnCount,
+  )
+  const collectionTopSpacerHeight = collectionWindow.startRow * collectionRowHeight
+  const collectionBottomSpacerHeight = Math.max(0, totalCollectionRows - collectionWindow.endRow) * collectionRowHeight
   const isQuestionSaved = (type: QuestionType) =>
     myQuestions.some(
       (question) =>
@@ -226,6 +250,58 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
         question.question_type === type &&
         question.question_text === drafts[type].trim(),
     )
+
+  useEffect(() => {
+    let animationFrameId = 0
+
+    function updateCollectionWindow() {
+      const grid = collectionGridRef.current
+
+      if (!grid) {
+        return
+      }
+
+      const columnCount = Math.max(1, Math.floor((grid.clientWidth + collectionGridGap) / (collectionCardMinWidth + collectionGridGap)))
+      const totalRows = Math.ceil(selectedQuestions.length / columnCount)
+      const gridTop = grid.getBoundingClientRect().top + window.scrollY
+      const visibleTop = Math.max(0, window.scrollY - gridTop - collectionRowHeight * collectionOverscanRows)
+      const visibleBottom =
+        window.scrollY + window.innerHeight - gridTop + collectionRowHeight * collectionOverscanRows
+      const startRow = Math.max(0, Math.floor(visibleTop / collectionRowHeight))
+      const endRow = Math.min(totalRows, Math.max(startRow + 1, Math.ceil(visibleBottom / collectionRowHeight)))
+
+      setCollectionWindow((current) => {
+        if (current.columnCount === columnCount && current.startRow === startRow && current.endRow === endRow) {
+          return current
+        }
+
+        return { columnCount, startRow, endRow }
+      })
+    }
+
+    function scheduleCollectionWindowUpdate() {
+      window.cancelAnimationFrame(animationFrameId)
+      animationFrameId = window.requestAnimationFrame(updateCollectionWindow)
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleCollectionWindowUpdate)
+    const grid = collectionGridRef.current
+
+    if (grid) {
+      resizeObserver.observe(grid)
+    }
+
+    updateCollectionWindow()
+    window.addEventListener('scroll', scheduleCollectionWindowUpdate, { passive: true })
+    window.addEventListener('resize', scheduleCollectionWindowUpdate)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId)
+      resizeObserver.disconnect()
+      window.removeEventListener('scroll', scheduleCollectionWindowUpdate)
+      window.removeEventListener('resize', scheduleCollectionWindowUpdate)
+    }
+  }, [selectedQuestions.length])
 
   return (
     <main className="page student-page">
@@ -301,19 +377,29 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
             </div>
 
             {selectedQuestions.length > 0 ? (
-              <div className="shared-grid collection-grid" key={collectionType}>
-                {selectedQuestions.map((question, index) => (
-                  <article
-                    className="shared-card"
-                    key={question.id}
-                    style={{ '--card-index': index } as CSSProperties}
-                  >
+              <div className="shared-grid collection-grid" key={collectionType} ref={collectionGridRef}>
+                {collectionTopSpacerHeight > 0 && (
+                  <div
+                    className="collection-spacer"
+                    style={{ height: collectionTopSpacerHeight }}
+                    aria-hidden="true"
+                  />
+                )}
+                {visibleCollectionQuestions.map((question) => (
+                  <article className="shared-card" key={question.id}>
                     <div>
                       <strong>{question.student_number}번</strong>
                     </div>
                     <p>{question.question_text}</p>
                   </article>
                 ))}
+                {collectionBottomSpacerHeight > 0 && (
+                  <div
+                    className="collection-spacer"
+                    style={{ height: collectionBottomSpacerHeight }}
+                    aria-hidden="true"
+                  />
+                )}
               </div>
             ) : (
               <p className="notice">아직 없어요.</p>
