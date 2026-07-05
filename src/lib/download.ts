@@ -11,21 +11,27 @@ function sortQuestions(questions: Question[]): Question[] {
   return [...questions].sort((a, b) => a.student_number - b.student_number)
 }
 
-function numberedLines(questions: Question[]): string[] {
+function studentNumberedLines(questions: Question[]): string[] {
   return sortQuestions(questions).map(
     (question) => `${question.student_number}. ${question.question_text.trim()}`,
   )
 }
 
+function sequenceNumberedLines(questions: Question[]): string[] {
+  return sortQuestions(questions).map((question, index) => `${index + 1}. ${question.question_text.trim()}`)
+}
+
 export function buildTxtContent(questions: Question[], mode: QuestionType | 'all'): string {
-  if (mode !== 'all') {
-    return [GOMA_HEADER, '', ...numberedLines(questions.filter((q) => q.question_type === mode))].join(
-      '\n',
-    )
+  if (mode === 'personal') {
+    return [GOMA_HEADER, '', ...studentNumberedLines(questions.filter((q) => q.question_type === mode))].join('\n')
   }
 
-  const personal = numberedLines(questions.filter((q) => q.question_type === 'personal'))
-  const topic = numberedLines(questions.filter((q) => q.question_type === 'topic'))
+  if (mode === 'topic') {
+    return [GOMA_HEADER, '', ...sequenceNumberedLines(questions.filter((q) => q.question_type === mode))].join('\n')
+  }
+
+  const personal = studentNumberedLines(questions.filter((q) => q.question_type === 'personal'))
+  const topic = sequenceNumberedLines(questions.filter((q) => q.question_type === 'topic'))
 
   return [GOMA_HEADER, '', `[${typeLabels.personal}]`, ...personal, `[${typeLabels.topic}]`, ...topic].join(
     '\n',
