@@ -1,4 +1,4 @@
-import type { Question, QuestionType } from './supabase'
+import type { Question, QuestionType } from './data'
 
 const GOMA_HEADER = '[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)'
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ifGlassesImage from '../assets/question-glasses/if-glasses.png'
 import reverseGlassesImage from '../assets/question-glasses/reverse-glasses.png'
 import whyGlassesImage from '../assets/question-glasses/why-glasses.png'
-import type { QuestionType } from '../lib/supabase'
+import type { QuestionType } from '../lib/data'
 import { playSound } from '../lib/sound'
 import { QUESTION_MAX_LENGTH } from '../lib/validation'
 

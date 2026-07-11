@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  deleteQuestion as deleteQuestionRequest,
+  loadAdminData,
+  loadTopicWeekKeys as loadTopicWeekKeysRequest,
+  resetAllRecords as resetAllRecordsRequest,
+  saveWeeklyTopic as saveWeeklyTopicRequest,
+  updateQuestion,
+} from '../lib/api'
+import type { Question, QuestionType } from '../lib/data'
 import { buildTxtContent, downloadTxt } from '../lib/download'
 import { playSound } from '../lib/sound'
-import { supabase, supabaseConfigError, type Question, type QuestionType, type WeeklyTopic } from '../lib/supabase'
 import { validateQuestionText } from '../lib/validation'
 import { buildWeekOptions, getCurrentWeekKey } from '../lib/week'
 
@@ -25,63 +33,55 @@ export function AdminPage() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [resetSaving, setResetSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [error, setError] = useState<string | null>(supabaseConfigError)
+  const [error, setError] = useState<string | null>(null)
   const currentWeekKey = useMemo(() => getCurrentWeekKey(), [])
   const weekOptions = useMemo(() => buildWeekOptions(8), [])
   const [weekKey, setWeekKey] = useState(() => currentWeekKey)
 
   const loadTopicWeekKeys = useCallback(async () => {
-    if (!supabase) {
-      return
-    }
-
     const weekKeys = weekOptions.map((option) => option.weekKey)
-    const { data, error: topicWeeksError } = await supabase
-      .from('weekly_topics')
-      .select('week_key')
-      .in('week_key', weekKeys)
 
-    if (topicWeeksError) {
-      setError('주제 작성 현황을 불러오지 못했어요. Supabase 설정을 확인해 주세요.')
-      return
+    try {
+      const { weekKeys: loadedWeekKeys } = await loadTopicWeekKeysRequest(weekKeys)
+      setTopicWeekKeys(new Set(loadedWeekKeys))
+    } catch (error) {
+      if (error instanceof Error) {
+        setError('주제 작성 현황을 불러오지 못했어요. 서버 설정을 확인해 주세요.')
+        return
+      }
+
+      throw error
     }
-
-    setTopicWeekKeys(new Set(((data as Pick<WeeklyTopic, 'week_key'>[] | null) ?? []).map((topic) => topic.week_key)))
   }, [weekOptions])
 
   const loadQuestions = useCallback(async (showLoading = true) => {
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-
     if (showLoading) {
       setLoading(true)
     }
-    const [questionsResult, topicResult] = await Promise.all([
-      supabase.from('questions').select('*').eq('week_key', weekKey).order('student_number', { ascending: true }),
-      supabase.from('weekly_topics').select('*').eq('week_key', weekKey).maybeSingle(),
-    ])
 
-    if (questionsResult.error || topicResult.error) {
-      setError('질문 목록을 불러오지 못했어요. Supabase 설정을 확인해 주세요.')
-    } else {
-      const loaded = (questionsResult.data as Question[] | null) ?? []
-      const topic = (topicResult.data as WeeklyTopic | null) ?? null
-      setQuestions(loaded)
-      setTopicDraft(topic?.topic_text ?? '')
+    try {
+      const { questions: loadedQuestions, weeklyTopic } = await loadAdminData(weekKey)
+      setQuestions(loadedQuestions)
+      setTopicDraft(weeklyTopic?.topic_text ?? '')
       setDrafts(
-        loaded.reduce<Record<string, string>>((acc, question) => {
+        loadedQuestions.reduce<Record<string, string>>((acc, question) => {
           acc[question.id] = question.question_text
           return acc
         }, {}),
       )
       setMessage('')
       setError(null)
-    }
+    } catch (error) {
+      if (error instanceof Error) {
+        setError('질문 목록을 불러오지 못했어요. 서버 설정을 확인해 주세요.')
+        return
+      }
 
-    if (showLoading) {
-      setLoading(false)
+      throw error
+    } finally {
+      if (showLoading) {
+        setLoading(false)
+      }
     }
   }, [weekKey])
 
@@ -126,79 +126,63 @@ export function AdminPage() {
       return
     }
 
-    if (!supabase) {
-      playSound('error')
-      setError(supabaseConfigError)
-      return
-    }
-
-    const { error: updateError } = await supabase
-      .from('questions')
-      .update({ question_text: nextText, updated_at: new Date().toISOString() })
-      .eq('id', question.id)
-
-    if (updateError) {
-      playSound('error')
-      setMessage('수정하지 못했습니다. 다시 시도해 주세요.')
-    } else {
+    try {
+      await updateQuestion(question.id, nextText)
       playSound('save')
       setMessage(`${question.student_number}번 수정 완료`)
       await loadQuestions()
+    } catch (error) {
+      if (error instanceof Error) {
+        playSound('error')
+        setMessage('수정하지 못했습니다. 다시 시도해 주세요.')
+        return
+      }
+
+      throw error
     }
   }
 
   async function deleteQuestion(question: Question) {
-    if (!supabase) {
-      playSound('error')
-      setError(supabaseConfigError)
-      return
-    }
-
     const scrollY = window.scrollY
-    const { error: deleteError } = await supabase.from('questions').delete().eq('id', question.id)
 
-    if (deleteError) {
-      playSound('error')
-      setMessage('삭제하지 못했습니다. 다시 시도해 주세요.')
-    } else {
+    try {
+      await deleteQuestionRequest(question.id)
       playSound('delete')
       setMessage(`${question.student_number}번 삭제 완료`)
       await loadQuestions(false)
       requestAnimationFrame(() => window.scrollTo({ top: scrollY }))
+    } catch (error) {
+      if (error instanceof Error) {
+        playSound('error')
+        setMessage('삭제하지 못했습니다. 다시 시도해 주세요.')
+        return
+      }
+
+      throw error
     }
   }
 
   async function resetAllRecords() {
-    if (!supabase) {
-      playSound('error')
-      setError(supabaseConfigError)
-      return
-    }
-
     setResetSaving(true)
-    const topicsResult = await supabase.from('weekly_topics').delete().not('id', 'is', null)
 
-    if (topicsResult.error) {
-      playSound('error')
-      setMessage('초기화하지 못했습니다. 주제 삭제 권한을 확인해 주세요.')
-      setResetSaving(false)
-      return
-    }
-
-    const questionsResult = await supabase.from('questions').delete().not('id', 'is', null)
-
-    if (questionsResult.error) {
-      playSound('error')
-      setMessage('초기화하지 못했습니다. 질문 삭제 권한을 확인해 주세요.')
-    } else {
+    try {
+      await resetAllRecordsRequest()
       playSound('delete')
       setMessage('모든 기록을 초기화했습니다.')
       setResetConfirmOpen(false)
       await loadTopicWeekKeys()
       await loadQuestions()
-    }
+    } catch (error) {
+      if (error instanceof Error) {
+        playSound('error')
+        setMessage('초기화하지 못했습니다. 서버 설정을 확인해 주세요.')
+        return
+      }
 
-    setResetSaving(false)
+      throw error
+    } finally {
+      setResetSaving(false)
+    }
   }
 
   function handleDownload(mode: FilterMode) {
@@ -228,33 +212,25 @@ export function AdminPage() {
       return
     }
 
-    if (!supabase) {
-      playSound('error')
-      setError(supabaseConfigError)
-      return
-    }
-
     setTopicSaving(true)
-    const { error: topicError } = await supabase.from('weekly_topics').upsert(
-      {
-        week_key: weekKey,
-        topic_text: topicText,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'week_key' },
-    )
 
-    if (topicError) {
-      playSound('error')
-      setMessage('주제를 저장하지 못했습니다.')
-    } else {
+    try {
+      await saveWeeklyTopicRequest(weekKey, topicText)
       playSound('save')
       setMessage('주제 저장 완료')
       await loadTopicWeekKeys()
       await loadQuestions()
-    }
+    } catch (error) {
+      if (error instanceof Error) {
+        playSound('error')
+        setMessage('주제를 저장하지 못했습니다.')
+        return
+      }
 
-    setTopicSaving(false)
+      throw error
+    } finally {
+      setTopicSaving(false)
+    }
   }
 
   return (

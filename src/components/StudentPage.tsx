@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { loadStudentData, saveQuestion } from '../lib/api'
+import type { Question, QuestionType, WeeklyTopic } from '../lib/data'
 import { playSound } from '../lib/sound'
 import { formatWeekKeyAsKoreanMonthWeek, getCurrentWeekKey } from '../lib/week'
 import { validateQuestionText } from '../lib/validation'
 import { QuestionCard } from './QuestionCard'
-import { supabase, supabaseConfigError, type Question, type QuestionType, type WeeklyTopic } from '../lib/supabase'
 
 interface StudentPageProps {
   studentNumber: number
@@ -43,55 +44,39 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
   const [messages, setMessages] = useState<StatusMessages>({})
   const [loading, setLoading] = useState(true)
   const [savingType, setSavingType] = useState<QuestionType | null>(null)
-  const [error, setError] = useState<string | null>(supabaseConfigError)
+  const [error, setError] = useState<string | null>(null)
   const [weekKey, setWeekKey] = useState(() => getCurrentWeekKey())
 
   const loadQuestions = useCallback(async () => {
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-
     setLoading(true)
-    const [questionsResult, historyResult, topicResult] = await Promise.all([
-      supabase
-        .from('questions')
-        .select('*')
-        .eq('week_key', weekKey)
-        .order('student_number', { ascending: true })
-        .order('question_type', { ascending: true }),
-      supabase
-        .from('questions')
-        .select('*')
-        .eq('student_number', studentNumber)
-        .order('week_key', { ascending: false })
-        .order('question_type', { ascending: true }),
-      supabase.from('weekly_topics').select('*').eq('week_key', weekKey).maybeSingle(),
-    ])
 
-    if (questionsResult.error || historyResult.error || topicResult.error) {
-      setError('질문을 불러오지 못했어요. 선생님께 알려 주세요.')
-    } else {
-      const loaded = (questionsResult.data as Question[] | null) ?? []
-      const loadedHistory = (historyResult.data as Question[] | null) ?? []
+    try {
+      const { questions, history, weeklyTopic: loadedWeeklyTopic } = await loadStudentData({ studentNumber, weekKey })
       const nextDrafts: QuestionDrafts = { personal: '', topic: '' }
       const currentStudentQuestions = [
-        ...loadedHistory.filter((question) => question.week_key === weekKey),
-        ...loaded.filter((question) => question.student_number === studentNumber),
+        ...history.filter((question) => question.week_key === weekKey),
+        ...questions.filter((question) => question.student_number === studentNumber),
       ]
 
       currentStudentQuestions.forEach((question) => {
         nextDrafts[question.question_type] = question.question_text
       })
 
-      setAllQuestions(loaded)
-      setMyQuestions(loadedHistory)
-      setWeeklyTopic((topicResult.data as WeeklyTopic | null) ?? null)
+      setAllQuestions(questions)
+      setMyQuestions(history)
+      setWeeklyTopic(loadedWeeklyTopic)
       setDrafts(nextDrafts)
       setError(null)
-    }
+    } catch (error) {
+      if (error instanceof Error) {
+        setError('질문을 불러오지 못했어요. 선생님께 알려 주세요.')
+        return
+      }
 
-    setLoading(false)
+      throw error
+    } finally {
+      setLoading(false)
+    }
   }, [studentNumber, weekKey])
 
   useEffect(() => {
@@ -145,36 +130,16 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
       return
     }
 
-    if (!supabase) {
-      playSound('error')
-      setError(supabaseConfigError)
-      return
-    }
-
     setSavingType(type)
     setMessages((current) => ({ ...current, [type]: '' }))
 
-    const { data: savedQuestion, error: saveError } = await supabase
-      .from('questions')
-      .upsert(
-        {
-          student_number: studentNumber,
-          question_type: type,
-          question_text: questionText,
-          week_key: weekKey,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'student_number,question_type,week_key' },
-      )
-      .select('*')
-      .single()
-
-    if (saveError) {
-      playSound('error')
-      setMessages((current) => ({ ...current, [type]: '저장하지 못했어요. 다시 눌러 주세요.' }))
-    } else {
-      const saved = savedQuestion as Question | null
-
+    try {
+      const { question: saved } = await saveQuestion({
+        studentNumber,
+        questionType: type,
+        questionText,
+        weekKey,
+      })
       playSound('save')
       setDrafts((current) => ({ ...current, [type]: questionText }))
       if (saved) {
@@ -202,9 +167,17 @@ export function StudentPage({ studentNumber }: StudentPageProps) {
         })
       }
       setMessages((current) => ({ ...current, [type]: undefined }))
-    }
+    } catch (error) {
+      if (error instanceof Error) {
+        playSound('error')
+        setMessages((current) => ({ ...current, [type]: '저장하지 못했어요. 다시 눌러 주세요.' }))
+        return
+      }
 
-    setSavingType(null)
+      throw error
+    } finally {
+      setSavingType(null)
+    }
   }
 
   const personalQuestions = allQuestions.filter(

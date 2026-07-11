@@ -43,7 +43,7 @@ export function PrivacyPolicy() {
         <article>
           <h2>5. 개인정보 처리 위탁</h2>
           <p>
-            서비스 제공을 위해 Supabase에 데이터 저장 및 관리 업무를, Vercel에 웹사이트 호스팅 업무를
+            서비스 제공을 위해 Neon에 데이터 저장 및 관리 업무를, Vercel에 웹사이트 호스팅과 API 운영 업무를
             이용합니다.
           </p>
         </article>
