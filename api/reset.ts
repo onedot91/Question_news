@@ -1,4 +1,4 @@
-import { queryRows, sendError, sendMethodNotAllowed, type ApiRequest, type ApiResponse } from './_shared'
+import { queryRows, sendError, sendMethodNotAllowed, type ApiRequest, type ApiResponse } from './_shared.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'DELETE') {
