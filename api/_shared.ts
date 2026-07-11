@@ -45,7 +45,9 @@ function getSql() {
   return neon(databaseUrl)
 }
 
-export const sql = getSql()
+export function sql() {
+  return getSql()
+}
 
 export function sendMethodNotAllowed(res: ApiResponse, allowedMethods: readonly string[]) {
   res.setHeader('Allow', allowedMethods.join(', '))

@@ -19,7 +19,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const body = parseBodyObject(req.body)
     const weekKey = parseWeekKey(body.weekKey)
     const topicText = parseTopicText(body.topicText)
-    await sql.query(
+    await sql().query(
       `
         insert into public.weekly_topics (week_key, topic_text)
         values ($1, $2)

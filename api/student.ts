@@ -20,8 +20,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const studentNumber = parseStudentNumber(firstQueryValue(req.query.studentNumber))
     const weekKey = parseWeekKey(firstQueryValue(req.query.weekKey))
+    const db = sql()
     const [questionsRows, historyRows, topicRows] = await Promise.all([
-      sql.query(
+      db.query(
         `
           select *
           from public.questions
@@ -30,7 +31,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `,
         [weekKey],
       ),
-      sql.query(
+      db.query(
         `
           select *
           from public.questions
@@ -39,7 +40,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `,
         [studentNumber],
       ),
-      sql.query(
+      db.query(
         `
           select *
           from public.weekly_topics

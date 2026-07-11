@@ -16,7 +16,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const weekKeys = parseWeekKeys(firstQueryValue(req.query.weekKeys))
-    const rows = await sql.query(
+    const rows = await sql().query(
       `
         select week_key
         from public.weekly_topics

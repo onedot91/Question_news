@@ -18,8 +18,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const weekKey = parseWeekKey(firstQueryValue(req.query.weekKey))
+    const db = sql()
     const [questionsRows, topicRows] = await Promise.all([
-      sql.query(
+      db.query(
         `
           select *
           from public.questions
@@ -28,7 +29,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `,
         [weekKey],
       ),
-      sql.query(
+      db.query(
         `
           select *
           from public.weekly_topics

@@ -7,8 +7,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
-    await sql.query('delete from public.weekly_topics')
-    await sql.query('delete from public.questions')
+    const db = sql()
+    await db.query('delete from public.weekly_topics')
+    await db.query('delete from public.questions')
     res.status(200).json({ ok: true })
   } catch (error) {
     sendError(res, error)
