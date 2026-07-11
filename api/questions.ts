@@ -6,10 +6,10 @@ import {
   parseQuestionType,
   parseStudentNumber,
   parseWeekKey,
+  queryRows,
   readQuestionRows,
   sendError,
   sendMethodNotAllowed,
-  sql,
   type ApiRequest,
   type ApiResponse,
 } from './_shared'
@@ -43,7 +43,7 @@ async function saveQuestion(req: ApiRequest, res: ApiResponse) {
   const questionType = parseQuestionType(body.questionType)
   const questionText = parseQuestionText(body.questionText)
   const weekKey = parseWeekKey(body.weekKey)
-  const rows = await sql().query(
+  const rows = await queryRows(
     `
       insert into public.questions (student_number, question_type, question_text, week_key)
       values ($1, $2, $3, $4)
@@ -61,7 +61,7 @@ async function updateQuestion(req: ApiRequest, res: ApiResponse) {
   const body = parseBodyObject(req.body)
   const id = parseId(body.id)
   const questionText = parseQuestionText(body.questionText)
-  await sql().query(
+  await queryRows(
     `
       update public.questions
       set question_text = $1, updated_at = now()
@@ -75,7 +75,7 @@ async function updateQuestion(req: ApiRequest, res: ApiResponse) {
 
 async function deleteQuestion(req: ApiRequest, res: ApiResponse) {
   const id = parseId(firstQueryValue(req.query.id))
-  await sql().query(
+  await queryRows(
     `
       delete from public.questions
       where id = $1

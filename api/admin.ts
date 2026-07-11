@@ -1,11 +1,11 @@
 import {
   firstQueryValue,
   parseWeekKey,
+  queryRows,
   readQuestionRows,
   readWeeklyTopicOrNull,
   sendError,
   sendMethodNotAllowed,
-  sql,
   type ApiRequest,
   type ApiResponse,
 } from './_shared'
@@ -18,9 +18,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const weekKey = parseWeekKey(firstQueryValue(req.query.weekKey))
-    const db = sql()
     const [questionsRows, topicRows] = await Promise.all([
-      db.query(
+      queryRows(
         `
           select *
           from public.questions
@@ -29,7 +28,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         `,
         [weekKey],
       ),
-      db.query(
+      queryRows(
         `
           select *
           from public.weekly_topics

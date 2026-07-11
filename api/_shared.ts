@@ -1,5 +1,3 @@
-import { neon } from '@neondatabase/serverless'
-
 import type { Question, QuestionType, WeeklyTopic } from '../src/lib/data'
 
 declare const process: {
@@ -9,6 +7,11 @@ declare const process: {
 }
 
 type QueryValue = string | readonly string[] | undefined
+type NeonModule = typeof import('@neondatabase/serverless')
+type QueryParam = string | number | boolean | null | readonly string[]
+type SqlClient = {
+  query(queryWithPlaceholders: string, params?: readonly QueryParam[]): Promise<unknown>
+}
 
 export interface ApiRequest {
   readonly method?: string
@@ -35,18 +38,36 @@ class ApiError extends Error {
 
 type Row = Record<string, unknown>
 
-function getSql() {
+async function getSql(): Promise<SqlClient> {
   const databaseUrl = process.env.DATABASE_URL
 
   if (!databaseUrl) {
     throw new ApiError(500, 'DATABASE_URL 환경변수가 없습니다.')
   }
 
-  return neon(databaseUrl)
+  const { neon } = await import('@neondatabase/serverless')
+  const client: ReturnType<NeonModule['neon']> = neon(databaseUrl)
+
+  return {
+    query(queryWithPlaceholders, params) {
+      return client.query(queryWithPlaceholders, params ? [...params] : undefined)
+    },
+  }
 }
 
-export function sql() {
+export function sql(): Promise<SqlClient> {
   return getSql()
+}
+
+export async function queryRows(queryWithPlaceholders: string, params?: readonly QueryParam[]): Promise<Row[]> {
+  const db = await sql()
+  const result = await db.query(queryWithPlaceholders, params)
+
+  if (Array.isArray(result) && result.every(isRow)) {
+    return result
+  }
+
+  throw new ApiError(500, 'DB 응답 형식이 올바르지 않습니다.')
 }
 
 export function sendMethodNotAllowed(res: ApiResponse, allowedMethods: readonly string[]) {

@@ -1,9 +1,9 @@
 import {
   firstQueryValue,
   parseWeekKey,
+  queryRows,
   sendError,
   sendMethodNotAllowed,
-  sql,
   type ApiRequest,
   type ApiResponse,
 } from './_shared'
@@ -16,7 +16,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const weekKeys = parseWeekKeys(firstQueryValue(req.query.weekKeys))
-    const rows = await sql().query(
+    const rows = await queryRows(
       `
         select week_key
         from public.weekly_topics
