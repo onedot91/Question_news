@@ -12,6 +12,8 @@ type QueryParam = string | number | boolean | null | readonly string[]
 type SqlClient = {
   query(queryWithPlaceholders: string, params?: readonly QueryParam[]): Promise<unknown>
 }
+const KOREA_TIME_OFFSET_MS = 9 * 60 * 60 * 1000
+const SCHOOL_TIMER_ORIGIN = 'https://school-timer.vercel.app'
 
 export interface ApiRequest {
   readonly method?: string
@@ -75,6 +77,17 @@ export function sendMethodNotAllowed(res: ApiResponse, allowedMethods: readonly 
   res.status(405).json({ message: '허용되지 않는 요청입니다.' })
 }
 
+export function applySchoolTimerCors(res: ApiResponse) {
+  res.setHeader('Access-Control-Allow-Origin', SCHOOL_TIMER_ORIGIN)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Vary', 'Origin')
+}
+
+export function sendOptionsOk(res: ApiResponse) {
+  res.status(204).end()
+}
+
 export function sendError(res: ApiResponse, error: unknown) {
   if (error instanceof ApiError) {
     res.status(error.statusCode).json({ message: error.message })
@@ -118,6 +131,19 @@ export function parseWeekKey(value: unknown): string {
   }
 
   throw new ApiError(400, 'weekKey가 필요합니다.')
+}
+
+export function currentWeekKey(date = new Date()): string {
+  const koreaDate = new Date(date.getTime() + KOREA_TIME_OFFSET_MS)
+  const target = new Date(
+    Date.UTC(koreaDate.getUTCFullYear(), koreaDate.getUTCMonth(), koreaDate.getUTCDate()),
+  )
+  const dayNumber = target.getUTCDay() || 7
+  target.setUTCDate(target.getUTCDate() + 4 - dayNumber)
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1))
+  const weekNumber = Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+
+  return `${target.getUTCFullYear()}-${String(weekNumber).padStart(2, '0')}`
 }
 
 export function parseStudentNumber(value: unknown): number {
