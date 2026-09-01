@@ -1005,6 +1005,11 @@ textarea:focus,
   background: #357abd;
 }
 
+.overview-legend span.downloaded::before {
+  border: 2px solid var(--mustard);
+  background: transparent;
+}
+
 .submission-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(58px, 1fr));
@@ -1061,6 +1066,10 @@ textarea:focus,
   background: #357abd;
 }
 
+.submission-dots .downloaded {
+  box-shadow: 0 0 0 3px var(--mustard);
+}
+
 .admin-toolbar,
 .download-panel {
   display: flex;
@@ -1095,6 +1104,9 @@ textarea:focus,
 }
 
 .download-panel {
+  display: grid;
+  align-items: stretch;
+  gap: 14px;
   border: 3px solid #ffffff;
   border-radius: 8px;
   padding: 16px;
@@ -1105,9 +1117,90 @@ textarea:focus,
   animation: slide-up 420ms ease both;
 }
 
-.download-panel p {
+.download-panel h2,
+.download-panel h3,
+.download-panel p,
+.download-panel dl,
+.download-panel dd {
   margin-bottom: 0;
+  margin-top: 0;
+}
+
+.download-panel h2 {
+  font-size: 1.12rem;
+}
+
+.download-panel h3 {
   font-size: 1rem;
+}
+
+.download-panel p {
+  font-size: 1rem;
+}
+
+.download-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.download-progress {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.download-progress div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 253, 246, 0.86);
+  font-size: 0.8rem;
+}
+
+.download-progress dt {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.download-progress dd {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.download-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.download-group {
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 253, 246, 0.78);
+}
+
+.download-group.cumulative {
+  border-color: rgba(22, 130, 74, 0.3);
+}
+
+.download-group.full {
+  border-color: rgba(185, 93, 60, 0.28);
+}
+
+.download-group p {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .download-actions {
@@ -1126,6 +1219,22 @@ textarea:focus,
 .download-actions button:hover {
   background: #ffc0ad;
   box-shadow: 0 10px 22px rgba(221, 111, 84, 0.16);
+}
+
+.download-group.cumulative .download-actions button {
+  background: linear-gradient(180deg, var(--mint) 0%, #c8e9cd 100%);
+  color: var(--download-done);
+}
+
+.download-actions button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+.download-message {
+  color: var(--ink);
+  font-weight: 900;
 }
 
 .admin-list {
@@ -1224,6 +1333,30 @@ textarea:focus,
   grid-template-columns: minmax(0, 1fr) 44px;
   align-items: center;
   gap: 10px;
+}
+
+.admin-question-content {
+  display: grid;
+  gap: 6px;
+}
+
+.download-status {
+  width: fit-content;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.download-status.done {
+  background: var(--mint);
+  color: var(--download-done);
+}
+
+.download-status.pending {
+  background: var(--pink);
+  color: var(--download-pending);
 }
 
 .admin-question-input {
@@ -2156,6 +2289,16 @@ body {
     width: 100%;
   }
 
+  .download-panel-head,
+  .download-progress {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .download-groups {
+    grid-template-columns: 1fr;
+  }
+
   .question-input {
     height: 132px;
     padding-right: 18px;
@@ -2212,6 +2355,8 @@ body {
   --banana: #ffe28b;
   --lavender: #e6e0ef;
   --pink: #f5d3cf;
+  --download-done: #16824a;
+  --download-pending: #b95d3c;
   --shadow: 0 16px 30px rgba(53, 38, 19, 0.16);
   --shadow-lift: 0 24px 44px rgba(53, 38, 19, 0.22);
 }

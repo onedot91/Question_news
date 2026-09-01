@@ -1,4 +1,4 @@
-import type { Question, QuestionType, WeeklyTopic } from '../src/lib/data'
+import type { DownloadMode, Question, QuestionType, WeeklyTopic } from '../src/lib/data'
 
 declare const process: {
   readonly env: {
@@ -170,6 +170,14 @@ export function parseQuestionType(value: unknown): QuestionType {
   throw new ApiError(400, '질문 종류가 올바르지 않습니다.')
 }
 
+export function parseDownloadMode(value: unknown): DownloadMode {
+  if (value === 'all') {
+    return value
+  }
+
+  return parseQuestionType(value)
+}
+
 export function parseQuestionText(value: unknown): string {
   if (typeof value === 'string' && value.trim()) {
     return value.trim()
@@ -203,6 +211,7 @@ export function readQuestion(row: Row): Question {
     week_key: readString(row, 'week_key'),
     created_at: readTimestamp(row, 'created_at'),
     updated_at: readTimestamp(row, 'updated_at'),
+    downloaded_at: readNullableTimestamp(row, 'downloaded_at'),
   }
 }
 
@@ -262,4 +271,14 @@ function readTimestamp(row: Row, key: string): string {
   }
 
   throw new ApiError(500, `${key} 값이 올바르지 않습니다.`)
+}
+
+function readNullableTimestamp(row: Row, key: string): string | null {
+  const value = row[key]
+
+  if (value === null) {
+    return null
+  }
+
+  return readTimestamp(row, key)
 }

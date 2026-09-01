@@ -6,7 +6,7 @@ Question News uses a classroom worksheet style: warm paper, dotted separators, w
 
 ## 2. Tokens
 
-- Color tokens live in `src/styles/global.css` under `:root`: `--ink`, `--muted`, `--line`, `--paper`, `--mint`, `--mint-strong`, `--coral`, `--coral-strong`, `--sky`, `--banana`, `--lavender`, `--pink`.
+- Color tokens live in `src/styles/global.css` under `:root`: `--ink`, `--muted`, `--line`, `--paper`, `--mint`, `--mint-strong`, `--coral`, `--coral-strong`, `--sky`, `--banana`, `--lavender`, `--pink`, `--download-done`, `--download-pending`.
 - Elevation tokens: `--shadow` for normal cards and `--shadow-lift` for hover/lifted states.
 - Radius: cards, panels, buttons, and chips use `8px`; pill controls use `999px`.
 - Spacing follows a 4px grid. Existing major gaps use 8, 10, 12, 14, 16, 18, 20, 22, 24, 30, 32, and 48px.
@@ -30,6 +30,7 @@ Question News uses a classroom worksheet style: warm paper, dotted separators, w
 - `history-modal`: fixed dialog with scrollable history list and visible close control.
 - `primary-button` and `secondary-button`: 8px rounded command buttons with clear focus and disabled states.
 - `collection-tabs`: pill segmented control for switching personal/topic collections.
+- `download-panel`: shows server-backed cumulative progress, separates cumulative and full exports, and gives every question a text status badge in addition to color.
 
 ## 6. Motion
 
@@ -42,3 +43,4 @@ Question News uses a classroom worksheet style: warm paper, dotted separators, w
 - Korean text must not clip or overlap at Chromebook widths.
 - Focus outlines remain visible on text inputs and controls.
 - Decorative images use empty `alt`; meaningful controls have labels.
+- Download completion must never rely on color alone; badges and button counts expose the same state in text.

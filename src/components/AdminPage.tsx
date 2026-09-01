@@ -8,10 +8,10 @@ import {
   updateQuestion,
 } from '../lib/api'
 import type { Question, QuestionType } from '../lib/data'
-import { buildTxtContent, downloadTxt } from '../lib/download'
 import { playSound } from '../lib/sound'
 import { validateQuestionText } from '../lib/validation'
 import { buildWeekOptions, getCurrentWeekKey } from '../lib/week'
+import { DownloadPanel } from './DownloadPanel'
 
 type QuestionMap = Record<number, Partial<Record<QuestionType, Question>>>
 type FilterMode = 'all' | QuestionType
@@ -104,13 +104,17 @@ export function AdminPage() {
   const studentStatuses = useMemo(() => {
     return Array.from({ length: 23 }, (_, index) => {
       const studentNumber = index + 1
-      const personal = Boolean(questionMap[studentNumber]?.personal)
-      const topic = Boolean(questionMap[studentNumber]?.topic)
+      const personalQuestion = questionMap[studentNumber]?.personal
+      const topicQuestion = questionMap[studentNumber]?.topic
+      const personal = Boolean(personalQuestion)
+      const topic = Boolean(topicQuestion)
 
       return {
         studentNumber,
         personal,
         topic,
+        personalDownloaded: Boolean(personalQuestion?.downloaded_at),
+        topicDownloaded: Boolean(topicQuestion?.downloaded_at),
         personalComplete: personal,
       }
     })
@@ -183,13 +187,6 @@ export function AdminPage() {
     } finally {
       setResetSaving(false)
     }
-  }
-
-  function handleDownload(mode: FilterMode) {
-    playSound('download')
-    const filename =
-      mode === 'all' ? `전체질문-${weekKey}.txt` : `${labels[mode].replace(' ', '')}-${weekKey}.txt`
-    downloadTxt(filename, buildTxtContent(questions, mode))
   }
 
   function shouldShowType(type: QuestionType) {
@@ -280,17 +277,27 @@ export function AdminPage() {
           <div className="overview-legend" aria-hidden="true">
             <span className="personal">개인</span>
             <span className="topic">주제</span>
+            <span className="downloaded">테두리: 누적 완료</span>
           </div>
         </div>
         <div className="submission-grid">
-          {studentStatuses.map(({ studentNumber, personal, topic, personalComplete }) => (
+          {studentStatuses.map(({
+            studentNumber,
+            personal,
+            topic,
+            personalDownloaded,
+            topicDownloaded,
+            personalComplete,
+          }) => (
             <div
               className={`submission-tile ${personalComplete ? 'personal-complete' : ''} ${
                 topic ? 'topic-submitted' : ''
               }`}
               key={studentNumber}
-              aria-label={`${studentNumber}번 개인 질문 ${personal ? '제출' : '미제출'}, 주제 질문 ${
-                topic ? '제출' : '미제출'
+              aria-label={`${studentNumber}번 개인 질문 ${personal ? '제출' : '미제출'}${
+                personal ? `, 누적 ${personalDownloaded ? '완료' : '대기'}` : ''
+              }, 주제 질문 ${topic ? '제출' : '미제출'}${
+                topic ? `, 누적 ${topicDownloaded ? '완료' : '대기'}` : ''
               }`}
               title={`${studentNumber}번 · 개인 ${personal ? '제출' : '미제출'} · 주제 ${
                 topic ? '제출' : '미제출'
@@ -298,8 +305,8 @@ export function AdminPage() {
             >
               <span className="submission-number">{studentNumber}</span>
               <span className="submission-dots" aria-hidden="true">
-                <span className={personal ? 'personal on' : 'personal'} />
-                <span className={topic ? 'topic on' : 'topic'} />
+                <span className={`personal${personal ? ' on' : ''}${personalDownloaded ? ' downloaded' : ''}`} />
+                <span className={`topic${topic ? ' on' : ''}${topicDownloaded ? ' downloaded' : ''}`} />
               </span>
             </div>
           ))}
@@ -350,20 +357,7 @@ export function AdminPage() {
         </div>
       </section>
 
-      <section className="download-panel">
-        <p>신문 이미지용 TXT</p>
-        <div className="download-actions">
-          <button type="button" onClick={() => handleDownload('personal')}>
-            개인 질문 TXT 다운로드
-          </button>
-          <button type="button" onClick={() => handleDownload('topic')}>
-            주제 질문 TXT 다운로드
-          </button>
-          <button type="button" onClick={() => handleDownload('all')}>
-            전체 질문 TXT 다운로드
-          </button>
-        </div>
-      </section>
+      <DownloadPanel questions={questions} weekKey={weekKey} onStatusChange={() => loadQuestions(false)} />
 
       {loading ? (
         <p className="notice pulse">불러오는 중</p>
@@ -379,39 +373,44 @@ export function AdminPage() {
                   return (
                     <div className={`admin-question-card${question ? '' : ' is-missing'}`} key={type}>
                       {question ? (
-                        <div className="admin-question-edit">
-                          <input
-                            className="admin-question-input"
-                            value={drafts[question.id] ?? question.question_text}
-                            maxLength={60}
-                            onChange={(event) =>
-                              setDrafts((current) => ({ ...current, [question.id]: event.target.value }))
-                            }
-                            onBlur={() => {
-                              if ((drafts[question.id] ?? question.question_text) !== question.question_text) {
-                                void saveQuestion(question)
+                        <div className="admin-question-content">
+                          <span className={`download-status ${question.downloaded_at ? 'done' : 'pending'}`}>
+                            {question.downloaded_at ? '누적 완료' : '누적 대기'}
+                          </span>
+                          <div className="admin-question-edit">
+                            <input
+                              className="admin-question-input"
+                              value={drafts[question.id] ?? question.question_text}
+                              maxLength={60}
+                              onChange={(event) =>
+                                setDrafts((current) => ({ ...current, [question.id]: event.target.value }))
                               }
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                event.currentTarget.blur()
-                              }
-                            }}
-                            aria-label={`${studentNumber}번 ${labels[type]}`}
-                          />
-                          <div className="small-actions">
-                            <button
-                              className="danger icon-button"
-                              type="button"
-                              onClick={() => deleteQuestion(question)}
-                              aria-label={`${studentNumber}번 ${labels[type]} 삭제`}
-                              title="삭제"
-                            >
-                              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" />
-                                <path d="M6 9h12l-1 12H7L6 9Zm4 2v8h2v-8h-2Zm4 0v8h2v-8h-2Z" />
-                              </svg>
-                            </button>
+                              onBlur={() => {
+                                if ((drafts[question.id] ?? question.question_text) !== question.question_text) {
+                                  void saveQuestion(question)
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.currentTarget.blur()
+                                }
+                              }}
+                              aria-label={`${studentNumber}번 ${labels[type]}`}
+                            />
+                            <div className="small-actions">
+                              <button
+                                className="danger icon-button"
+                                type="button"
+                                onClick={() => deleteQuestion(question)}
+                                aria-label={`${studentNumber}번 ${labels[type]} 삭제`}
+                                title="삭제"
+                              >
+                                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                                  <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" />
+                                  <path d="M6 9h12l-1 12H7L6 9Zm4 2v8h2v-8h-2Zm4 0v8h2v-8h-2Z" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (

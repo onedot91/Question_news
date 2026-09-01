@@ -1,6 +1,6 @@
 import ky from 'ky'
 
-import type { Question, QuestionType, WeeklyTopic } from './data'
+import type { DownloadMode, Question, QuestionType, WeeklyTopic } from './data'
 
 interface StudentData {
   readonly questions: Question[]
@@ -19,6 +19,10 @@ interface TopicWeeksData {
 
 interface SaveQuestionData {
   readonly question: Question | null
+}
+
+interface DownloadQuestionsData {
+  readonly questions: Question[]
 }
 
 interface StudentDataParams {
@@ -67,6 +71,13 @@ export function deleteQuestion(id: string): Promise<{ readonly ok: boolean }> {
 
 export function saveWeeklyTopic(weekKey: string, topicText: string): Promise<{ readonly ok: boolean }> {
   return api.post('topics', { json: { weekKey, topicText } }).json<{ readonly ok: boolean }>()
+}
+
+export function claimCumulativeDownload(
+  weekKey: string,
+  mode: DownloadMode,
+): Promise<DownloadQuestionsData> {
+  return api.post('downloads', { json: { weekKey, mode } }).json<DownloadQuestionsData>()
 }
 
 export function resetAllRecords(): Promise<{ readonly ok: boolean }> {

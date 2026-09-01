@@ -11,8 +11,12 @@ create table if not exists public.questions (
   week_key text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  downloaded_at timestamptz,
   unique (student_number, question_type, week_key)
 );
+
+alter table public.questions
+add column if not exists downloaded_at timestamptz;
 
 alter table public.questions
 drop constraint if exists question_text_length;
@@ -135,7 +139,7 @@ $$ language plpgsql;
 drop trigger if exists questions_set_updated_at on public.questions;
 
 create trigger questions_set_updated_at
-before update on public.questions
+before update of question_text on public.questions
 for each row
 execute function public.set_updated_at();
 
