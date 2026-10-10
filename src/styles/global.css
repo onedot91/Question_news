@@ -3748,3 +3748,21 @@ textarea,
   justify-self: end;
   align-self: center;
 }
+
+.nickname-panel {
+  justify-self: center;
+}
+
+.nickname-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.nickname-summary strong {
+  color: #d15e7b;
+}

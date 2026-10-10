@@ -26,6 +26,10 @@ export function loadMyQuestions(authorToken: string): Promise<QuestionsData> {
   return api.get('questions', { searchParams: { authorToken } }).json<QuestionsData>()
 }
 
+export function loadPublicQuestions(): Promise<QuestionsData> {
+  return api.get('questions').json<QuestionsData>()
+}
+
 export function createQuestion(params: CreateQuestionParams): Promise<CreateQuestionData> {
   return api.post('questions', { json: params }).json<CreateQuestionData>()
 }

@@ -14,11 +14,16 @@ import {
 
 const QUESTION_COLUMNS = 'id, nickname, question_text, created_at, updated_at, downloaded_at'
 const MY_QUESTIONS_LIMIT = 100
+const PUBLIC_QUESTIONS_LIMIT = 200
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     if (req.method === 'GET') {
-      await listMyQuestions(req, res)
+      if (firstQueryValue(req.query.authorToken)) {
+        await listMyQuestions(req, res)
+      } else {
+        await listPublicQuestions(res)
+      }
       return
     }
 
@@ -54,6 +59,20 @@ async function listMyQuestions(req: ApiRequest, res: ApiResponse) {
       limit ${MY_QUESTIONS_LIMIT}
     `,
     [authorToken],
+  )
+
+  res.status(200).json({ questions: readQuestionRows(rows) })
+}
+
+// 모두에게 보여 주는 최근 질문입니다. 다운로드 상태는 교사 화면에서만 씁니다.
+async function listPublicQuestions(res: ApiResponse) {
+  const rows = await queryRows(
+    `
+      select id, nickname, question_text, created_at, updated_at, null::timestamptz as downloaded_at
+      from public.free_questions
+      order by created_at desc
+      limit ${PUBLIC_QUESTIONS_LIMIT}
+    `,
   )
 
   res.status(200).json({ questions: readQuestionRows(rows) })

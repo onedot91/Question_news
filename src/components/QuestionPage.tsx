@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import gomaCharacter from '../assets/goma-newspaper-character.png'
-import { createQuestion, loadMyQuestions } from '../lib/api'
+import { createQuestion, loadMyQuestions, loadPublicQuestions } from '../lib/api'
 import type { Question } from '../lib/data'
 import { playSound } from '../lib/sound'
 import { NICKNAME_MAX_LENGTH, validateNickname, validateQuestionText } from '../lib/validation'
@@ -13,6 +13,8 @@ interface QuestionPageProps {
 
 const NICKNAME_STORAGE_KEY = 'question-news-nickname'
 const TEACHER_REVEAL_CLICKS = 5
+
+type QuestionView = 'all' | 'mine'
 
 function readStoredNickname(): string {
   try {
@@ -41,8 +43,14 @@ function formatCreatedAt(createdAt: string): string {
 
 export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps) {
   const [nickname, setNickname] = useState(readStoredNickname)
+  // 확인된 닉네임이 있어야 질문 입력란이 열립니다. 저장된 닉네임이 올바르면 바로 엽니다.
+  const [confirmedNickname, setConfirmedNickname] = useState(() =>
+    validateNickname(nickname) ? '' : nickname.trim(),
+  )
   const [draft, setDraft] = useState('')
   const [myQuestions, setMyQuestions] = useState<Question[]>([])
+  const [publicQuestions, setPublicQuestions] = useState<Question[]>([])
+  const [view, setView] = useState<QuestionView>('all')
   const [message, setMessage] = useState<string | undefined>()
   const [nicknameMessage, setNicknameMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
@@ -54,12 +62,13 @@ export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps
     setLoading(true)
 
     try {
-      const { questions } = await loadMyQuestions(authorToken)
-      setMyQuestions(questions)
+      const [mine, everyone] = await Promise.all([loadMyQuestions(authorToken), loadPublicQuestions()])
+      setMyQuestions(mine.questions)
+      setPublicQuestions(everyone.questions)
       setError(null)
     } catch (error) {
       if (error instanceof Error) {
-        setError('내 질문을 불러오지 못했어요. 잠시 뒤 다시 들어와 주세요.')
+        setError('질문을 불러오지 못했어요. 잠시 뒤 다시 들어와 주세요.')
         return
       }
 
@@ -85,16 +94,35 @@ export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps
     setTeacherClickCount(nextCount)
   }
 
-  async function handleSave() {
+  function handleConfirmNickname() {
     const nextNickname = nickname.trim()
-    const questionText = draft.trim()
     const nicknameError = validateNickname(nextNickname)
+
+    if (nicknameError) {
+      playSound('error')
+      setNicknameMessage(nicknameError)
+      return
+    }
+
+    playSound('tap')
+    storeNickname(nextNickname)
+    setNickname(nextNickname)
+    setConfirmedNickname(nextNickname)
+  }
+
+  function handleChangeNickname() {
+    playSound('tap')
+    setNicknameMessage(undefined)
+    setConfirmedNickname('')
+  }
+
+  async function handleSave() {
+    const questionText = draft.trim()
     const questionError = validateQuestionText(questionText)
 
-    setNicknameMessage(nicknameError ?? undefined)
     setMessage(questionError ?? undefined)
 
-    if (nicknameError || questionError) {
+    if (questionError) {
       playSound('error')
       return
     }
@@ -102,14 +130,14 @@ export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps
     setSaving(true)
 
     try {
-      const { question } = await createQuestion({ nickname: nextNickname, questionText, authorToken })
+      const { question } = await createQuestion({ nickname: confirmedNickname, questionText, authorToken })
       playSound('save')
-      storeNickname(nextNickname)
       setDraft('')
       setMessage('질문을 보냈어요!')
 
       if (question) {
         setMyQuestions((current) => [question, ...current])
+        setPublicQuestions((current) => [question, ...current])
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -123,6 +151,8 @@ export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps
       setSaving(false)
     }
   }
+
+  const visibleQuestions = view === 'all' ? publicQuestions : myQuestions
 
   return (
     <main className="page student-page free-question-page">
@@ -144,65 +174,111 @@ export function QuestionPage({ authorToken, onTeacherReveal }: QuestionPageProps
         </div>
       </section>
 
-      <section className="nickname-panel" aria-label="닉네임">
-        <label className="nickname-field">
-          <span>닉네임</span>
-          <input
-            value={nickname}
-            maxLength={NICKNAME_MAX_LENGTH}
-            onChange={(event) => {
-              setNickname(event.target.value)
-              setNicknameMessage(undefined)
-            }}
-            placeholder="예: 궁금이"
-            autoComplete="nickname"
-          />
-        </label>
-        {nicknameMessage && <span className="helper-text">{nicknameMessage}</span>}
-      </section>
+      {confirmedNickname ? (
+        <>
+          <section className="nickname-summary" aria-label="닉네임">
+            <span>
+              <strong>{confirmedNickname}</strong>님, 궁금한 것을 질문해 보세요
+            </span>
+            <button className="secondary-button" type="button" onClick={handleChangeNickname}>
+              닉네임 바꾸기
+            </button>
+          </section>
 
-      <section className="student-card-grid single" aria-label="질문 쓰기">
-        <QuestionCard
-          id="free"
-          label="질문"
-          value={draft}
-          isSaving={saving}
-          isFilled={Boolean(draft.trim())}
-          isSaved={false}
-          message={message}
-          placeholder="평소 궁금한 내용을 질문해요"
-          onChange={(value) => {
-            setDraft(value)
-            setMessage(undefined)
+          <section className="student-card-grid single" aria-label="질문 쓰기">
+            <QuestionCard
+              id="free"
+              label="질문"
+              value={draft}
+              isSaving={saving}
+              isFilled={Boolean(draft.trim())}
+              isSaved={false}
+              message={message}
+              placeholder="평소 궁금한 내용을 질문해요"
+              onChange={(value) => {
+                setDraft(value)
+                setMessage(undefined)
+              }}
+              onSave={handleSave}
+            />
+          </section>
+
+          <section className="collection-section" aria-labelledby="question-list-title">
+            <div className="collection-head">
+              <h2 id="question-list-title">{view === 'all' ? '모두의 질문' : '내가 한 질문'}</h2>
+              <div className="collection-tabs" aria-label="질문 목록 선택">
+                {(
+                  [
+                    ['all', `모두 ${publicQuestions.length}`],
+                    ['mine', `내 질문 ${myQuestions.length}`],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={view === value ? 'active' : ''}
+                    type="button"
+                    onClick={() => {
+                      if (view !== value) {
+                        playSound('tap')
+                      }
+                      setView(value)
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="notice error">{error}</p>}
+            {loading ? (
+              <p className="notice pulse">불러오는 중</p>
+            ) : visibleQuestions.length > 0 ? (
+              <div className="shared-grid">
+                {visibleQuestions.map((question) => (
+                  <article className="shared-card" key={question.id}>
+                    <div>
+                      <strong>{question.nickname}</strong>
+                      <span>{formatCreatedAt(question.created_at)}</span>
+                    </div>
+                    <p>{question.question_text}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="notice">아직 없어요. 첫 질문을 보내 보세요!</p>
+            )}
+          </section>
+        </>
+      ) : (
+        <form
+          className="nickname-panel"
+          aria-label="닉네임 입력"
+          onSubmit={(event) => {
+            event.preventDefault()
+            handleConfirmNickname()
           }}
-          onSave={handleSave}
-        />
-      </section>
-
-      <section className="collection-section" aria-labelledby="my-questions-title">
-        <div className="collection-head">
-          <h2 id="my-questions-title">내가 한 질문 {myQuestions.length > 0 && myQuestions.length}</h2>
-        </div>
-
-        {error && <p className="notice error">{error}</p>}
-        {loading ? (
-          <p className="notice pulse">불러오는 중</p>
-        ) : myQuestions.length > 0 ? (
-          <div className="shared-grid">
-            {myQuestions.map((question) => (
-              <article className="shared-card" key={question.id}>
-                <div>
-                  <strong>{question.nickname}</strong>
-                  <span>{formatCreatedAt(question.created_at)}</span>
-                </div>
-                <p>{question.question_text}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="notice">아직 없어요. 첫 질문을 보내 보세요!</p>
-        )}
-      </section>
+        >
+          <label className="nickname-field">
+            <span>먼저 닉네임을 정해 주세요</span>
+            <input
+              value={nickname}
+              maxLength={NICKNAME_MAX_LENGTH}
+              onChange={(event) => {
+                setNickname(event.target.value)
+                setNicknameMessage(undefined)
+              }}
+              placeholder="예: 궁금이"
+              autoComplete="nickname"
+              autoFocus
+            />
+          </label>
+          {nicknameMessage && <span className="helper-text">{nicknameMessage}</span>}
+          <button className="primary-button" type="submit">
+            다음
+          </button>
+        </form>
+      )}
     </main>
   )
 }
