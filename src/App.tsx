@@ -1,33 +1,56 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AdminPage } from './components/AdminPage'
-import { NumberSelect } from './components/NumberSelect'
 import { PrivacyPolicy } from './components/PrivacyPolicy'
-import { StudentPage } from './components/StudentPage'
+import { QuestionPage } from './components/QuestionPage'
 import thumbnailImage from './assets/question-news-thumbnail.avif'
 import { playSound } from './lib/sound'
 
-const STORAGE_KEY = 'question-news-student-number'
+const TEACHER_STORAGE_KEY = 'question-news-teacher'
+const AUTHOR_TOKEN_STORAGE_KEY = 'question-news-author-token'
 const SPLASH_DURATION_MS = 2100
 
-function readStoredNumber(): number | null {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  const parsed = stored ? Number(stored) : Number.NaN
+function readStoredTeacherMode(): boolean {
+  try {
+    return localStorage.getItem(TEACHER_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
-  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 23 ? parsed : null
+function writeStoredTeacherMode(isTeacher: boolean) {
+  try {
+    if (isTeacher) {
+      localStorage.setItem(TEACHER_STORAGE_KEY, '1')
+    } else {
+      localStorage.removeItem(TEACHER_STORAGE_KEY)
+    }
+  } catch {
+    // 저장소를 쓸 수 없으면 이번 접속 동안만 유지합니다.
+  }
+}
+
+// 브라우저마다 하나씩 만드는 익명 식별값입니다. "내가 한 질문"을 찾는 데만 씁니다.
+function readAuthorToken(): string {
+  try {
+    const stored = localStorage.getItem(AUTHOR_TOKEN_STORAGE_KEY)
+
+    if (stored) {
+      return stored
+    }
+
+    const created = crypto.randomUUID()
+    localStorage.setItem(AUTHOR_TOKEN_STORAGE_KEY, created)
+    return created
+  } catch {
+    return crypto.randomUUID()
+  }
 }
 
 export default function App() {
-  const [selectedNumber, setSelectedNumber] = useState<number | null>(null)
+  const [isTeacher, setIsTeacher] = useState(readStoredTeacherMode)
+  const [authorToken] = useState(readAuthorToken)
   const [isSplashVisible, setIsSplashVisible] = useState(true)
   const isPrivacyPage = window.location.pathname === '/privacy'
-
-  useEffect(() => {
-    if (isPrivacyPage) {
-      return
-    }
-
-    setSelectedNumber(readStoredNumber())
-  }, [isPrivacyPage])
 
   useEffect(() => {
     if (isPrivacyPage) {
@@ -41,16 +64,10 @@ export default function App() {
     return () => window.clearTimeout(timeoutId)
   }, [isPrivacyPage])
 
-  function handleSelect(studentNumber: number) {
+  const changeTeacherMode = useCallback((nextIsTeacher: boolean) => {
     playSound('tap')
-    localStorage.setItem(STORAGE_KEY, String(studentNumber))
-    setSelectedNumber(studentNumber)
-  }
-
-  const handleReset = useCallback(() => {
-    playSound('tap')
-    localStorage.removeItem(STORAGE_KEY)
-    setSelectedNumber(null)
+    writeStoredTeacherMode(nextIsTeacher)
+    setIsTeacher(nextIsTeacher)
   }, [])
 
   useEffect(() => {
@@ -60,30 +77,25 @@ export default function App() {
 
       if (isResetShortcut) {
         event.preventDefault()
-        handleReset()
+        changeTeacherMode(false)
       }
     }
 
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [handleReset])
+  }, [changeTeacherMode])
 
   if (isPrivacyPage) {
     return <PrivacyPolicy />
   }
 
-  const page =
-    selectedNumber === null ? (
-      <NumberSelect onSelect={handleSelect} />
-    ) : selectedNumber === 0 ? (
-      <AdminPage />
-    ) : (
-      <StudentPage studentNumber={selectedNumber} />
-    )
-
   return (
     <>
-      {page}
+      {isTeacher ? (
+        <AdminPage onExit={() => changeTeacherMode(false)} />
+      ) : (
+        <QuestionPage authorToken={authorToken} onTeacherReveal={() => changeTeacherMode(true)} />
+      )}
       <footer className="site-footer">
         <a href="/privacy">개인정보처리방침</a>
       </footer>

@@ -3686,3 +3686,65 @@ textarea,
     height: 11px;
   }
 }
+
+/* 자유 질문 페이지 */
+.free-question-page {
+  display: grid;
+  gap: 22px;
+}
+
+.student-card-grid.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.nickname-panel {
+  display: grid;
+  gap: 6px;
+  width: min(420px, 100%);
+}
+
+.nickname-field {
+  display: grid;
+  gap: 6px;
+  font-weight: 900;
+}
+
+.nickname-field input {
+  min-height: 50px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.nickname-field input:focus {
+  border-color: var(--mint-strong);
+  outline: 4px solid rgba(74, 166, 125, 0.18);
+}
+
+.free-admin-list {
+  margin-top: 18px;
+}
+
+.admin-question-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.admin-question-meta strong {
+  color: #d15e7b;
+  font-size: 1.05rem;
+}
+
+.admin-page .top-bar .admin-exit-button {
+  justify-self: end;
+  align-self: center;
+}

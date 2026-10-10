@@ -1,40 +1,19 @@
 import ky from 'ky'
 
-import type { DownloadMode, Question, QuestionType, WeeklyTopic } from './data'
+import type { Question } from './data'
 
-interface StudentData {
+interface QuestionsData {
   readonly questions: Question[]
-  readonly history: Question[]
-  readonly weeklyTopic: WeeklyTopic | null
 }
 
-interface AdminData {
-  readonly questions: Question[]
-  readonly weeklyTopic: WeeklyTopic | null
-}
-
-interface TopicWeeksData {
-  readonly weekKeys: string[]
-}
-
-interface SaveQuestionData {
+interface CreateQuestionData {
   readonly question: Question | null
 }
 
-interface DownloadQuestionsData {
-  readonly questions: Question[]
-}
-
-interface StudentDataParams {
-  readonly studentNumber: number
-  readonly weekKey: string
-}
-
-interface SaveQuestionParams {
-  readonly studentNumber: number
-  readonly questionType: QuestionType
+interface CreateQuestionParams {
+  readonly nickname: string
   readonly questionText: string
-  readonly weekKey: string
+  readonly authorToken: string
 }
 
 const api = ky.create({
@@ -43,22 +22,16 @@ const api = ky.create({
   timeout: 10000,
 })
 
-export function loadStudentData(params: StudentDataParams): Promise<StudentData> {
-  return api
-    .get('student', { searchParams: { studentNumber: params.studentNumber, weekKey: params.weekKey } })
-    .json<StudentData>()
+export function loadMyQuestions(authorToken: string): Promise<QuestionsData> {
+  return api.get('questions', { searchParams: { authorToken } }).json<QuestionsData>()
 }
 
-export function loadAdminData(weekKey: string): Promise<AdminData> {
-  return api.get('admin', { searchParams: { weekKey } }).json<AdminData>()
+export function createQuestion(params: CreateQuestionParams): Promise<CreateQuestionData> {
+  return api.post('questions', { json: params }).json<CreateQuestionData>()
 }
 
-export function loadTopicWeekKeys(weekKeys: readonly string[]): Promise<TopicWeeksData> {
-  return api.get('topic-weeks', { searchParams: { weekKeys: weekKeys.join(',') } }).json<TopicWeeksData>()
-}
-
-export function saveQuestion(params: SaveQuestionParams): Promise<SaveQuestionData> {
-  return api.post('questions', { json: params }).json<SaveQuestionData>()
+export function loadAdminQuestions(): Promise<QuestionsData> {
+  return api.get('admin').json<QuestionsData>()
 }
 
 export function updateQuestion(id: string, questionText: string): Promise<{ readonly ok: boolean }> {
@@ -69,15 +42,8 @@ export function deleteQuestion(id: string): Promise<{ readonly ok: boolean }> {
   return api.delete('questions', { searchParams: { id } }).json<{ readonly ok: boolean }>()
 }
 
-export function saveWeeklyTopic(weekKey: string, topicText: string): Promise<{ readonly ok: boolean }> {
-  return api.post('topics', { json: { weekKey, topicText } }).json<{ readonly ok: boolean }>()
-}
-
-export function claimCumulativeDownload(
-  weekKey: string,
-  mode: DownloadMode,
-): Promise<DownloadQuestionsData> {
-  return api.post('downloads', { json: { weekKey, mode } }).json<DownloadQuestionsData>()
+export function claimCumulativeDownload(): Promise<QuestionsData> {
+  return api.post('downloads').json<QuestionsData>()
 }
 
 export function resetAllRecords(): Promise<{ readonly ok: boolean }> {

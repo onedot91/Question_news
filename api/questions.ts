@@ -1,11 +1,9 @@
 import {
   firstQueryValue,
   parseBodyObject,
-  parseId,
+  parseNickname,
   parseQuestionText,
-  parseQuestionType,
-  parseStudentNumber,
-  parseWeekKey,
+  parseUuid,
   queryRows,
   readQuestionRows,
   sendError,
@@ -14,10 +12,18 @@ import {
   type ApiResponse,
 } from './_shared.js'
 
+const QUESTION_COLUMNS = 'id, nickname, question_text, created_at, updated_at, downloaded_at'
+const MY_QUESTIONS_LIMIT = 100
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
+    if (req.method === 'GET') {
+      await listMyQuestions(req, res)
+      return
+    }
+
     if (req.method === 'POST') {
-      await saveQuestion(req, res)
+      await createQuestion(req, res)
       return
     }
 
@@ -31,27 +37,40 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return
     }
 
-    sendMethodNotAllowed(res, ['POST', 'PATCH', 'DELETE'])
+    sendMethodNotAllowed(res, ['GET', 'POST', 'PATCH', 'DELETE'])
   } catch (error) {
     sendError(res, error)
   }
 }
 
-async function saveQuestion(req: ApiRequest, res: ApiResponse) {
-  const body = parseBodyObject(req.body)
-  const studentNumber = parseStudentNumber(body.studentNumber)
-  const questionType = parseQuestionType(body.questionType)
-  const questionText = parseQuestionText(body.questionText)
-  const weekKey = parseWeekKey(body.weekKey)
+async function listMyQuestions(req: ApiRequest, res: ApiResponse) {
+  const authorToken = parseUuid(firstQueryValue(req.query.authorToken), 'authorToken')
   const rows = await queryRows(
     `
-      insert into public.questions (student_number, question_type, question_text, week_key)
-      values ($1, $2, $3, $4)
-      on conflict (student_number, question_type, week_key)
-      do update set question_text = excluded.question_text, updated_at = now()
-      returning *
+      select ${QUESTION_COLUMNS}
+      from public.free_questions
+      where author_token = $1
+      order by created_at desc
+      limit ${MY_QUESTIONS_LIMIT}
     `,
-    [studentNumber, questionType, questionText, weekKey],
+    [authorToken],
+  )
+
+  res.status(200).json({ questions: readQuestionRows(rows) })
+}
+
+async function createQuestion(req: ApiRequest, res: ApiResponse) {
+  const body = parseBodyObject(req.body)
+  const nickname = parseNickname(body.nickname)
+  const questionText = parseQuestionText(body.questionText)
+  const authorToken = parseUuid(body.authorToken, 'authorToken')
+  const rows = await queryRows(
+    `
+      insert into public.free_questions (nickname, question_text, author_token)
+      values ($1, $2, $3)
+      returning ${QUESTION_COLUMNS}
+    `,
+    [nickname, questionText, authorToken],
   )
 
   res.status(200).json({ question: readQuestionRows(rows)[0] ?? null })
@@ -59,12 +78,12 @@ async function saveQuestion(req: ApiRequest, res: ApiResponse) {
 
 async function updateQuestion(req: ApiRequest, res: ApiResponse) {
   const body = parseBodyObject(req.body)
-  const id = parseId(body.id)
+  const id = parseUuid(body.id, 'id')
   const questionText = parseQuestionText(body.questionText)
   await queryRows(
     `
-      update public.questions
-      set question_text = $1, updated_at = now()
+      update public.free_questions
+      set question_text = $1
       where id = $2
     `,
     [questionText, id],
@@ -74,10 +93,10 @@ async function updateQuestion(req: ApiRequest, res: ApiResponse) {
 }
 
 async function deleteQuestion(req: ApiRequest, res: ApiResponse) {
-  const id = parseId(firstQueryValue(req.query.id))
+  const id = parseUuid(firstQueryValue(req.query.id), 'id')
   await queryRows(
     `
-      delete from public.questions
+      delete from public.free_questions
       where id = $1
     `,
     [id],

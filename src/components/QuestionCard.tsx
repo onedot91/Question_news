@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import ifGlassesImage from '../assets/question-glasses/if-glasses.png'
 import reverseGlassesImage from '../assets/question-glasses/reverse-glasses.png'
 import whyGlassesImage from '../assets/question-glasses/why-glasses.png'
-import type { QuestionType } from '../lib/data'
 import { playSound } from '../lib/sound'
 import { QUESTION_MAX_LENGTH } from '../lib/validation'
 
@@ -17,20 +16,18 @@ interface QuestionGlasses {
 }
 
 interface QuestionCardProps {
+  id: string
   label: string
-  type: QuestionType
   value: string
   isSaving: boolean
   isFilled: boolean
   isSaved: boolean
-  isSelected?: boolean
   disabled?: boolean
   message?: string
   placeholder?: string
   titleAside?: string
-  onChange: (type: QuestionType, value: string) => void
-  onSelect?: (type: QuestionType) => void
-  onSave: (type: QuestionType) => void
+  onChange: (value: string) => void
+  onSave: () => void
 }
 
 const questionGlasses: QuestionGlasses[] = [
@@ -170,19 +167,17 @@ function restoreCaretOffset(element: HTMLElement, offset: number) {
 }
 
 export function QuestionCard({
+  id,
   label,
-  type,
   value,
   isSaving,
   isFilled,
   isSaved,
-  isSelected = false,
   disabled = false,
   message,
   placeholder = '평소 궁금한 내용에 대해 질문해요',
   titleAside,
   onChange,
-  onSelect,
   onSave,
 }: QuestionCardProps) {
   const inputRef = useRef<HTMLDivElement>(null)
@@ -243,7 +238,7 @@ export function QuestionCard({
     if (nextValue !== value) {
       playSound('type')
     }
-    onChange(type, nextValue)
+    onChange(nextValue)
   }
 
   function handleSelectGlasses(glasses: QuestionGlasses) {
@@ -251,7 +246,6 @@ export function QuestionCard({
       return
     }
 
-    onSelect?.(type)
     setSelectedGlasses(glasses.id)
     setIsGlassesOpen(false)
     setIsInputSparkling(true)
@@ -260,7 +254,7 @@ export function QuestionCard({
     const nextValue = `${glasses.word} ${stripQuestionStarters(value)}`
 
     if (nextValue !== value) {
-      onChange(type, nextValue)
+      onChange(nextValue)
     }
 
     window.setTimeout(() => {
@@ -273,12 +267,7 @@ export function QuestionCard({
 
   return (
     <article
-      className={`question-card ${isFilled ? 'has-value' : ''} ${isSaved ? 'is-saved' : ''} ${
-        isSelected ? 'is-selected' : ''
-      }`}
-      aria-current={isSelected ? 'true' : undefined}
-      onClick={() => onSelect?.(type)}
-      onFocusCapture={() => onSelect?.(type)}
+      className={`question-card is-selected ${isFilled ? 'has-value' : ''} ${isSaved ? 'is-saved' : ''}`}
     >
       <div className="question-selection-dots" aria-hidden="true">
         <span />
@@ -296,7 +285,7 @@ export function QuestionCard({
             type="button"
             disabled={disabled}
             aria-expanded={isGlassesOpen}
-            aria-controls={`${type}-question-glasses-options`}
+            aria-controls={`${id}-question-glasses-options`}
             aria-label={
               activeGlassesList.length > 0
                 ? `${activeGlassesList.map((glasses) => glasses.label).join(', ')} 선택됨`
@@ -304,7 +293,6 @@ export function QuestionCard({
             }
             onClick={(event) => {
               event.stopPropagation()
-              onSelect?.(type)
               setIsGlassesOpen((current) => !current)
               playSound('tap')
             }}
@@ -322,7 +310,7 @@ export function QuestionCard({
           {isGlassesOpen && (
             <div
               className="question-glasses"
-              id={`${type}-question-glasses-options`}
+              id={`${id}-question-glasses-options`}
               aria-label={`${label} 질문 안경 선택`}
             >
               {questionGlasses.map((glasses) => (
@@ -369,7 +357,7 @@ export function QuestionCard({
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
-                onSave(type)
+                onSave()
               }
             }}
             onPaste={(event) => {
@@ -383,7 +371,7 @@ export function QuestionCard({
           className="primary-button inline-submit"
           type="button"
           disabled={isSaving || disabled}
-          onClick={() => onSave(type)}
+          onClick={() => onSave()}
         >
           {isSaving ? '제출 중' : '제출'}
         </button>

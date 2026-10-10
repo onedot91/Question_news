@@ -7,8 +7,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
-    await queryRows('delete from public.weekly_topics')
-    await queryRows('delete from public.questions')
+    await queryRows('delete from public.free_questions')
     res.status(200).json({ ok: true })
   } catch (error) {
     sendError(res, error)

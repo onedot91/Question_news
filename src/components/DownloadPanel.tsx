@@ -1,66 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import { claimCumulativeDownload } from '../lib/api'
-import type { DownloadMode, Question } from '../lib/data'
-import { buildTxtContent, downloadTxt, selectQuestionsForDownload } from '../lib/download'
+import type { Question } from '../lib/data'
+import { buildTxtContent, downloadTxt, selectQuestionsForDownload, todayLabel } from '../lib/download'
 import { playSound } from '../lib/sound'
 
 interface DownloadPanelProps {
   readonly questions: readonly Question[]
-  readonly weekKey: string
   readonly onStatusChange: () => Promise<void>
 }
 
-const downloadModes = [
-  { mode: 'personal', label: '개인 질문' },
-  { mode: 'topic', label: '주제 질문' },
-  { mode: 'all', label: '전체 질문' },
-] as const satisfies readonly { readonly mode: DownloadMode; readonly label: string }[]
-
-const filenameLabels = {
-  personal: '개인질문',
-  topic: '주제질문',
-  all: '전체질문',
-} as const satisfies Record<DownloadMode, string>
-
-export function DownloadPanel({ questions, weekKey, onStatusChange }: DownloadPanelProps) {
-  const [savingMode, setSavingMode] = useState<DownloadMode | null>(null)
+export function DownloadPanel({ questions, onStatusChange }: DownloadPanelProps) {
+  const [saving, setSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
-  const progress = useMemo(() => {
-    const personal = questions.filter((question) => question.question_type === 'personal')
-    const topic = questions.filter((question) => question.question_type === 'topic')
+  const pendingCount = selectQuestionsForDownload(questions, 'cumulative').length
+  const totalCount = questions.length
 
-    return {
-      personal: {
-        submitted: personal.length,
-        completed: personal.filter((question) => question.downloaded_at !== null).length,
-        pending: personal.filter((question) => question.downloaded_at === null).length,
-      },
-      topic: {
-        submitted: topic.length,
-        completed: topic.filter((question) => question.downloaded_at !== null).length,
-        pending: topic.filter((question) => question.downloaded_at === null).length,
-      },
-    }
-  }, [questions])
-
-  async function downloadCumulative(mode: DownloadMode) {
-    setSavingMode(mode)
+  async function downloadCumulative() {
+    setSaving(true)
     setStatusMessage('')
 
     try {
-      const { questions: claimedQuestions } = await claimCumulativeDownload(weekKey, mode)
+      const { questions: claimedQuestions } = await claimCumulativeDownload()
 
       if (claimedQuestions.length === 0) {
         playSound('tap')
-        setStatusMessage('새로 누적할 질문이 없습니다.')
+        setStatusMessage('새로 받을 질문이 없습니다.')
         return
       }
 
-      downloadTxt(
-        `${filenameLabels[mode]}-누적-${weekKey}.txt`,
-        buildTxtContent(claimedQuestions, mode),
-      )
+      downloadTxt(`질문-누적-${todayLabel()}.txt`, buildTxtContent(claimedQuestions))
       playSound('download')
       setStatusMessage(`${claimedQuestions.length}개 질문을 누적 다운로드했습니다.`)
       await onStatusChange()
@@ -73,22 +42,20 @@ export function DownloadPanel({ questions, weekKey, onStatusChange }: DownloadPa
 
       throw error
     } finally {
-      setSavingMode(null)
+      setSaving(false)
     }
   }
 
-  function downloadFull(mode: DownloadMode) {
-    const selectedQuestions = selectQuestionsForDownload(questions, mode, 'full')
-
-    if (selectedQuestions.length === 0) {
+  function downloadFull() {
+    if (totalCount === 0) {
       playSound('tap')
       setStatusMessage('다운로드할 질문이 없습니다.')
       return
     }
 
-    downloadTxt(`${filenameLabels[mode]}-${weekKey}.txt`, buildTxtContent(selectedQuestions, mode))
+    downloadTxt(`질문-전체-${todayLabel()}.txt`, buildTxtContent(questions))
     playSound('download')
-    setStatusMessage(`${selectedQuestions.length}개 질문을 전체 다운로드했습니다.`)
+    setStatusMessage(`${totalCount}개 질문을 전체 다운로드했습니다.`)
   }
 
   return (
@@ -100,16 +67,9 @@ export function DownloadPanel({ questions, weekKey, onStatusChange }: DownloadPa
         </div>
         <dl className="download-progress" aria-label="누적 다운로드 현황">
           <div>
-            <dt>개인</dt>
+            <dt>질문</dt>
             <dd>
-              완료 {progress.personal.completed} · 대기 {progress.personal.pending} · 미제출{' '}
-              {23 - progress.personal.submitted}
-            </dd>
-          </div>
-          <div>
-            <dt>주제</dt>
-            <dd>
-              완료 {progress.topic.completed} · 대기 {progress.topic.pending} · 제출 {progress.topic.submitted}
+              전체 {totalCount} · 완료 {totalCount - pendingCount} · 대기 {pendingCount}
             </dd>
           </div>
         </dl>
@@ -122,43 +82,21 @@ export function DownloadPanel({ questions, weekKey, onStatusChange }: DownloadPa
             <p>아직 받지 않은 질문만 내려받고 완료로 기록합니다.</p>
           </div>
           <div className="download-actions">
-            {downloadModes.map(({ mode, label }) => {
-              const pendingCount = selectQuestionsForDownload(questions, mode, 'cumulative').length
-
-              return (
-                <button
-                  type="button"
-                  key={mode}
-                  disabled={savingMode !== null || pendingCount === 0}
-                  onClick={() => downloadCumulative(mode)}
-                >
-                  {savingMode === mode ? '처리 중' : `${label} 누적 (${pendingCount})`}
-                </button>
-              )
-            })}
+            <button type="button" disabled={saving || pendingCount === 0} onClick={downloadCumulative}>
+              {saving ? '처리 중' : `새 질문 누적 (${pendingCount})`}
+            </button>
           </div>
         </section>
 
         <section className="download-group full" aria-labelledby="full-download-title">
           <div>
             <h3 id="full-download-title">전체 다운로드</h3>
-            <p>현재 제출된 질문을 기존 방식 그대로 모두 내려받습니다.</p>
+            <p>지금까지 들어온 질문을 모두 내려받습니다.</p>
           </div>
           <div className="download-actions">
-            {downloadModes.map(({ mode, label }) => {
-              const totalCount = selectQuestionsForDownload(questions, mode, 'full').length
-
-              return (
-                <button
-                  type="button"
-                  key={mode}
-                  disabled={savingMode !== null || totalCount === 0}
-                  onClick={() => downloadFull(mode)}
-                >
-                  {label} 전체 ({totalCount})
-                </button>
-              )
-            })}
+            <button type="button" disabled={saving || totalCount === 0} onClick={downloadFull}>
+              전체 질문 ({totalCount})
+            </button>
           </div>
         </section>
       </div>

@@ -1,14 +1,13 @@
 import {
-  firstQueryValue,
-  parseWeekKey,
   queryRows,
   readQuestionRows,
-  readWeeklyTopicOrNull,
   sendError,
   sendMethodNotAllowed,
   type ApiRequest,
   type ApiResponse,
 } from './_shared.js'
+
+const ADMIN_QUESTIONS_LIMIT = 2000
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
@@ -17,32 +16,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
-    const weekKey = parseWeekKey(firstQueryValue(req.query.weekKey))
-    const [questionsRows, topicRows] = await Promise.all([
-      queryRows(
-        `
-          select *
-          from public.questions
-          where week_key = $1
-          order by student_number asc
-        `,
-        [weekKey],
-      ),
-      queryRows(
-        `
-          select *
-          from public.weekly_topics
-          where week_key = $1
-          limit 1
-        `,
-        [weekKey],
-      ),
-    ])
+    const rows = await queryRows(
+      `
+        select id, nickname, question_text, created_at, updated_at, downloaded_at
+        from public.free_questions
+        order by created_at desc
+        limit ${ADMIN_QUESTIONS_LIMIT}
+      `,
+    )
 
-    res.status(200).json({
-      questions: readQuestionRows(questionsRows),
-      weeklyTopic: readWeeklyTopicOrNull(topicRows),
-    })
+    res.status(200).json({ questions: readQuestionRows(rows) })
   } catch (error) {
     sendError(res, error)
   }

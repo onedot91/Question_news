@@ -1,6 +1,6 @@
 # 질문하기
 
-초등학교 3학년 학생 1번부터 23번까지 이번 주 개인 질문과 주제 질문을 제출하고, 교사가 관리자 화면에서 질문을 확인한 뒤 TXT 파일로 내려받는 Vite + React + TypeScript + Vercel API + Neon 웹사이트입니다.
+누구나 닉네임을 쓰고 자유롭게 질문을 남기면, 교사가 관리자 화면에서 질문을 모아 보고 TXT 파일로 내려받는 Vite + React + TypeScript + Vercel API + Neon 웹사이트입니다.
 
 ## 설치 및 실행
 
@@ -22,15 +22,14 @@ DATABASE_URL=Neon connection string
 
 ## Neon SQL
 
-Neon SQL Editor에서 [db/schema.sql](/Users/ibyeonghyeon/Documents/GitHub/Question_news/db/schema.sql) 파일 내용을 실행합니다.
+Neon SQL Editor에서 [db/schema.sql](db/schema.sql) 파일 내용을 실행합니다. 새 `free_questions` 테이블을 만들며, 이전 학생 번호 방식의 `questions` / `weekly_topics` 테이블은 건드리지 않습니다.
 
 ## 주요 기능
 
-- 처음 접속하면 1번부터 23번, 교사용 0번을 선택합니다.
-- 선택한 번호는 `localStorage`에 저장되어 다음 접속 때 바로 해당 화면으로 이동합니다.
-- 학생은 한국 시간 기준 월요일부터 일요일까지 이번 주 개인 질문 1개, 주제 질문 1개를 저장하고 같은 주 안에서 다시 수정할 수 있습니다.
-- 월요일에 새 주차가 시작되면 학생 화면의 개인 질문과 주제 질문 입력칸은 비워지고, 지난 질문은 우측 상단 `내 기록`에서 확인할 수 있습니다.
-- 같은 `student_number + question_type + week_key` 조합은 PostgreSQL unique constraint와 API upsert로 하나만 유지됩니다.
-- 교사는 이번 주 질문을 학생 번호순으로 확인하고, 개인 질문/주제 질문/전체 보기로 필터링할 수 있습니다.
-- 관리자 화면에서 질문 수정, 삭제, 새로고침, TXT 다운로드가 가능합니다.
-- TXT 다운로드 첫 줄은 `[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)` 형식으로 생성됩니다.
+- 접속하면 바로 질문 화면이 나옵니다. 닉네임(필수, 12자 이내)과 질문을 써서 보냅니다. 몇 개든 보낼 수 있습니다.
+- 닉네임은 브라우저에 기억되어 다음 질문 때 다시 쓰지 않아도 됩니다.
+- 브라우저마다 익명 식별값(`question-news-author-token`)을 만들어, 아래 `내가 한 질문`에 그 브라우저에서 보낸 질문만 보여 줍니다. 다른 사람의 질문은 보이지 않습니다.
+- 질문 검사 규칙(60자 이내, 띄어쓰기 1회 이상, 특수문자는 물음표만, 물음표 하나로 끝내기, 금지어)은 `src/lib/validation.ts` 한 곳에 있으며 브라우저와 서버가 함께 씁니다.
+- 질문 화면 왼쪽 위 빈 곳을 5번 누르면 교사 화면으로 들어갑니다. `나가기` 버튼이나 `Ctrl/Cmd + Alt + Enter`로 돌아옵니다.
+- 교사 화면에서는 모든 질문을 최신순으로 보고, 수정·삭제·초기화·TXT 다운로드(누적/전체)를 할 수 있습니다.
+- TXT는 작성 순서대로 `1. 질문 (닉네임)` 형식이며, 첫 줄은 `[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)` 헤더입니다.

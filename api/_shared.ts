@@ -1,4 +1,5 @@
-import type { DownloadMode, Question, QuestionType, WeeklyTopic } from '../src/lib/data'
+import type { Question } from '../src/lib/data'
+import { validateNickname, validateQuestionText } from '../src/lib/validation.js'
 
 declare const process: {
   readonly env: {
@@ -12,8 +13,7 @@ type QueryParam = string | number | boolean | null | readonly string[]
 type SqlClient = {
   query(queryWithPlaceholders: string, params?: readonly QueryParam[]): Promise<unknown>
 }
-const KOREA_TIME_OFFSET_MS = 9 * 60 * 60 * 1000
-const SCHOOL_TIMER_ORIGIN = 'https://school-timer.vercel.app'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface ApiRequest {
   readonly method?: string
@@ -77,17 +77,6 @@ export function sendMethodNotAllowed(res: ApiResponse, allowedMethods: readonly 
   res.status(405).json({ message: '허용되지 않는 요청입니다.' })
 }
 
-export function applySchoolTimerCors(res: ApiResponse) {
-  res.setHeader('Access-Control-Allow-Origin', SCHOOL_TIMER_ORIGIN)
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Vary', 'Origin')
-}
-
-export function sendOptionsOk(res: ApiResponse) {
-  res.status(204).end()
-}
-
 export function sendError(res: ApiResponse, error: unknown) {
   if (error instanceof ApiError) {
     res.status(error.statusCode).json({ message: error.message })
@@ -125,114 +114,49 @@ export function parseBodyObject(body: unknown): Row {
   throw new ApiError(400, '요청 형식이 올바르지 않습니다.')
 }
 
-export function parseWeekKey(value: unknown): string {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim()
-  }
-
-  throw new ApiError(400, 'weekKey가 필요합니다.')
-}
-
-export function currentWeekKey(date = new Date()): string {
-  const koreaDate = new Date(date.getTime() + KOREA_TIME_OFFSET_MS)
-  const target = new Date(
-    Date.UTC(koreaDate.getUTCFullYear(), koreaDate.getUTCMonth(), koreaDate.getUTCDate()),
-  )
-  const dayNumber = target.getUTCDay() || 7
-  target.setUTCDate(target.getUTCDate() + 4 - dayNumber)
-  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1))
-  const weekNumber = Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-
-  return `${target.getUTCFullYear()}-${String(weekNumber).padStart(2, '0')}`
-}
-
-export function parseStudentNumber(value: unknown): number {
-  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23) {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-
-    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 23) {
-      return parsed
-    }
-  }
-
-  throw new ApiError(400, '학생 번호가 올바르지 않습니다.')
-}
-
-export function parseQuestionType(value: unknown): QuestionType {
-  if (value === 'personal' || value === 'topic') {
-    return value
-  }
-
-  throw new ApiError(400, '질문 종류가 올바르지 않습니다.')
-}
-
-export function parseDownloadMode(value: unknown): DownloadMode {
-  if (value === 'all') {
-    return value
-  }
-
-  return parseQuestionType(value)
-}
-
 export function parseQuestionText(value: unknown): string {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim()
+  const text = typeof value === 'string' ? value.trim() : ''
+  const message = validateQuestionText(text)
+
+  if (message) {
+    throw new ApiError(400, message)
   }
 
-  throw new ApiError(400, '질문 내용이 필요합니다.')
+  return text
 }
 
-export function parseTopicText(value: unknown): string {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim()
+export function parseNickname(value: unknown): string {
+  const nickname = typeof value === 'string' ? value.trim() : ''
+  const message = validateNickname(nickname)
+
+  if (message) {
+    throw new ApiError(400, message)
   }
 
-  throw new ApiError(400, '주제 내용이 필요합니다.')
+  return nickname
 }
 
-export function parseId(value: unknown): string {
-  if (typeof value === 'string' && value.trim()) {
+export function parseUuid(value: unknown, name: string): string {
+  if (typeof value === 'string' && UUID_PATTERN.test(value.trim())) {
     return value.trim()
   }
 
-  throw new ApiError(400, 'id가 필요합니다.')
+  throw new ApiError(400, `${name}가 올바르지 않습니다.`)
 }
 
 export function readQuestion(row: Row): Question {
   return {
     id: readString(row, 'id'),
-    student_number: readNumber(row, 'student_number'),
-    question_type: parseQuestionType(row.question_type),
+    nickname: readString(row, 'nickname'),
     question_text: readString(row, 'question_text'),
-    week_key: readString(row, 'week_key'),
     created_at: readTimestamp(row, 'created_at'),
     updated_at: readTimestamp(row, 'updated_at'),
     downloaded_at: readNullableTimestamp(row, 'downloaded_at'),
   }
 }
 
-export function readWeeklyTopic(row: Row): WeeklyTopic {
-  return {
-    id: readString(row, 'id'),
-    week_key: readString(row, 'week_key'),
-    topic_text: readString(row, 'topic_text'),
-    created_at: readTimestamp(row, 'created_at'),
-    updated_at: readTimestamp(row, 'updated_at'),
-  }
-}
-
 export function readQuestionRows(rows: readonly Row[]): Question[] {
   return rows.map(readQuestion)
-}
-
-export function readWeeklyTopicOrNull(rows: readonly Row[]): WeeklyTopic | null {
-  const first = rows[0]
-
-  return first ? readWeeklyTopic(first) : null
 }
 
 function isRow(value: unknown): value is Row {
@@ -243,16 +167,6 @@ function readString(row: Row, key: string): string {
   const value = row[key]
 
   if (typeof value === 'string') {
-    return value
-  }
-
-  throw new ApiError(500, `${key} 값이 올바르지 않습니다.`)
-}
-
-function readNumber(row: Row, key: string): number {
-  const value = row[key]
-
-  if (typeof value === 'number') {
     return value
   }
 

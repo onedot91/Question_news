@@ -1,31 +1,9 @@
+// 브라우저와 서버(api)가 함께 쓰는 검사 규칙입니다.
 export const QUESTION_MAX_LENGTH = 60
-const BANNED_STUDENT_NAMES = [
-  '제현',
-  '민재',
-  '수환',
-  '연아',
-  '지원',
-  '지윤',
-  '원진',
-  '준호',
-  '서진',
-  '유주',
-  '하준',
-  '가인',
-  '서현',
-  '승우',
-  '시은',
-  '민서',
-  '하윤',
-  '다윤',
-  '은재',
-  '선우',
-  '수아',
-  '태준',
-  '지민',
-] as const
+export const NICKNAME_MAX_LENGTH = 12
 const BANNED_WORDS = ['야르', '67'] as const
 const ALLOWED_QUESTION_CHARACTERS = /^[\p{L}\p{N}\s?？]+$/u
+const ALLOWED_NICKNAME_CHARACTERS = /^[\p{L}\p{N} ]+$/u
 
 export function validateQuestionText(text: string): string | null {
   const trimmed = text.trim()
@@ -36,10 +14,6 @@ export function validateQuestionText(text: string): string | null {
 
   if (trimmed.length > QUESTION_MAX_LENGTH) {
     return `${QUESTION_MAX_LENGTH}자 안으로 줄여 주세요.`
-  }
-
-  if (BANNED_STUDENT_NAMES.some((name) => trimmed.includes(name))) {
-    return '친구 이름은 쓸 수 없어요.'
   }
 
   if (BANNED_WORDS.some((word) => trimmed.includes(word))) {
@@ -56,6 +30,28 @@ export function validateQuestionText(text: string): string | null {
 
   if (!/^[^?？]+[?？]$/.test(trimmed)) {
     return '물음표 하나로 끝내 주세요.'
+  }
+
+  return null
+}
+
+export function validateNickname(nickname: string): string | null {
+  const trimmed = nickname.trim()
+
+  if (!trimmed) {
+    return '닉네임을 써 주세요.'
+  }
+
+  if (trimmed.length > NICKNAME_MAX_LENGTH) {
+    return `닉네임은 ${NICKNAME_MAX_LENGTH}자 안으로 써 주세요.`
+  }
+
+  if (BANNED_WORDS.some((word) => trimmed.includes(word))) {
+    return '닉네임에 쓸 수 없는 말이 들어 있어요.'
+  }
+
+  if (!ALLOWED_NICKNAME_CHARACTERS.test(trimmed)) {
+    return '닉네임은 글자와 숫자만 쓸 수 있어요.'
   }
 
   return null

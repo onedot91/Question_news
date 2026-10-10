@@ -1,54 +1,21 @@
-import type { DownloadKind, DownloadMode, Question, QuestionType } from './data'
+import type { DownloadKind, Question } from './data'
 
 const GOMA_HEADER = '[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)'
 
-const typeLabels: Record<QuestionType, string> = {
-  personal: '개인 질문',
-  topic: '주제 질문',
+function sortByCreatedAt(questions: readonly Question[]): Question[] {
+  return [...questions].sort((a, b) => a.created_at.localeCompare(b.created_at))
 }
 
-function sortQuestions(questions: readonly Question[]): Question[] {
-  return [...questions].sort((a, b) => a.student_number - b.student_number)
+export function selectQuestionsForDownload(questions: readonly Question[], kind: DownloadKind): Question[] {
+  return questions.filter((question) => kind === 'full' || question.downloaded_at === null)
 }
 
-function studentNumberedLines(questions: readonly Question[]): string[] {
-  return sortQuestions(questions).map(
-    (question) => `${question.student_number}. ${question.question_text.trim()}`,
+export function buildTxtContent(questions: readonly Question[]): string {
+  const lines = sortByCreatedAt(questions).map(
+    (question, index) => `${index + 1}. ${question.question_text.trim()} (${question.nickname.trim()})`,
   )
-}
 
-function sequenceNumberedLines(questions: readonly Question[]): string[] {
-  return sortQuestions(questions).map((question, index) => `${index + 1}. ${question.question_text.trim()}`)
-}
-
-export function selectQuestionsForDownload(
-  questions: readonly Question[],
-  mode: DownloadMode,
-  kind: DownloadKind,
-): Question[] {
-  return questions.filter((question) => {
-    const matchesMode = mode === 'all' || question.question_type === mode
-    const isAvailable = kind === 'full' || question.downloaded_at === null
-
-    return matchesMode && isAvailable
-  })
-}
-
-export function buildTxtContent(questions: readonly Question[], mode: DownloadMode): string {
-  if (mode === 'personal') {
-    return [GOMA_HEADER, '', ...studentNumberedLines(questions.filter((q) => q.question_type === mode))].join('\n')
-  }
-
-  if (mode === 'topic') {
-    return [GOMA_HEADER, '', ...sequenceNumberedLines(questions.filter((q) => q.question_type === mode))].join('\n')
-  }
-
-  const personal = studentNumberedLines(questions.filter((q) => q.question_type === 'personal'))
-  const topic = sequenceNumberedLines(questions.filter((q) => q.question_type === 'topic'))
-
-  return [GOMA_HEADER, '', `[${typeLabels.personal}]`, ...personal, `[${typeLabels.topic}]`, ...topic].join(
-    '\n',
-  )
+  return [GOMA_HEADER, '', ...lines].join('\n')
 }
 
 export function downloadTxt(filename: string, content: string): void {
@@ -59,5 +26,11 @@ export function downloadTxt(filename: string, content: string): void {
   link.href = url
   link.download = filename
   link.click()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function todayLabel(date = new Date()): string {
+  const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+
+  return koreaDate.toISOString().slice(0, 10)
 }
