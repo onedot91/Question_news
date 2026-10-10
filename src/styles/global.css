@@ -3766,3 +3766,229 @@ textarea,
 .nickname-summary strong {
   color: #d15e7b;
 }
+
+/* 모바일 최적화: 첫 화면에서 바로 닉네임·질문을 입력할 수 있게 압축 */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 760px) {
+  .page.free-question-page {
+    gap: 14px;
+    width: calc(100% - 24px);
+    padding: max(12px, env(safe-area-inset-top)) 0 calc(40px + env(safe-area-inset-bottom));
+  }
+
+  /* 히어로: 세로로 큰 카드 → 한 줄짜리 가로 헤더 */
+  .free-question-page .intro {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    min-height: 0;
+    padding: 14px 16px;
+    text-align: left;
+  }
+
+  .free-question-page .intro::before,
+  .free-question-page .intro::after {
+    display: none;
+  }
+
+  .free-question-page .eyebrow {
+    margin-bottom: 6px;
+    padding: 3px 9px;
+    font-size: 0.85rem;
+  }
+
+  .free-question-page .intro h1 {
+    font-size: clamp(1.9rem, 9.5vw, 2.5rem);
+    line-height: 1.05;
+  }
+
+  .free-question-page .intro-scene {
+    height: 96px;
+    margin-top: 0;
+  }
+
+  .free-question-page .intro-character {
+    right: 0;
+    bottom: 0;
+    width: 96px;
+    transform: none;
+  }
+
+  /* 닉네임 */
+  .free-question-page .nickname-summary {
+    flex-wrap: nowrap;
+    gap: 8px;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .free-question-page .nickname-summary .secondary-button {
+    flex: none;
+    width: auto;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .nickname-panel {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .nickname-field input {
+    min-height: 56px;
+    font-size: 1.2rem;
+  }
+
+  .nickname-panel .primary-button {
+    min-height: 54px;
+    font-size: 1.1rem;
+  }
+
+  /* 질문 카드 */
+  .free-question-page .question-card {
+    padding: 16px 14px 14px;
+  }
+
+  .free-question-page .question-selection-dots {
+    display: none;
+  }
+
+  .free-question-page .question-title-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .free-question-page .question-title-main {
+    width: auto;
+  }
+
+  .free-question-page .question-glasses-shell {
+    width: auto;
+    margin-left: auto;
+  }
+
+  .free-question-page .question-glasses-toggle {
+    width: auto;
+    min-height: 44px;
+    padding-inline: 14px;
+  }
+
+  /* 질문 안경: 세로 목록 → 3열 칩 */
+  .free-question-page .question-glasses {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    margin-top: 10px;
+    gap: 6px;
+  }
+
+  .free-question-page .question-glasses-shell {
+    display: contents;
+  }
+
+  .free-question-page .question-title-row {
+    flex-wrap: wrap;
+  }
+
+  .free-question-page .question-glasses {
+    order: 3;
+    flex: 0 0 100%;
+  }
+
+  .free-question-page .question-glasses-button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    min-height: 68px;
+    padding: 6px 4px;
+    text-align: center;
+  }
+
+  .free-question-page .glasses-image {
+    width: 52px;
+    height: 32px;
+  }
+
+  .free-question-page .glasses-label {
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  /* 입력창 + 제출: 입력 영역 아래 큰 제출 버튼 */
+  .free-question-page .question-input-box {
+    height: auto;
+    min-height: 124px;
+    padding: 14px 14px 68px;
+  }
+
+  .free-question-page .question-input {
+    height: auto;
+    min-height: 76px;
+    padding: 0;
+    font-size: 1.1rem;
+    line-height: 1.45;
+  }
+
+  .free-question-page .inline-submit {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    min-height: 48px;
+    background: var(--mint-strong);
+    border-color: transparent;
+    color: #ffffff;
+    font-size: 1.1rem;
+  }
+
+  .free-question-page .card-actions {
+    margin-top: 8px;
+  }
+
+  /* 질문 목록 */
+  .free-question-page .collection-section {
+    padding: 14px 12px;
+  }
+
+  .free-question-page .collection-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -14px -12px 12px;
+    padding: 10px 12px;
+    background: rgba(255, 252, 244, 0.96);
+    border-radius: 8px 8px 0 0;
+    gap: 8px;
+  }
+
+  .free-question-page .collection-head h2 {
+    font-size: 1.2rem;
+  }
+
+  .free-question-page .collection-tabs button {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .free-question-page .shared-card {
+    padding: 12px 14px;
+  }
+
+  .free-question-page .shared-card p {
+    font-size: 1.05rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* 교사 숨김 버튼은 터치 영역이 겹치지 않게 유지 */
+  .teacher-reveal-button {
+    top: env(safe-area-inset-top);
+  }
+}
